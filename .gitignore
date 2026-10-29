@@ -8,6 +8,8 @@ node_modules
 dist
 *.local
 *.tsbuildinfo
+__pycache__/
+*.py[cod]
 
 # envs
 .env

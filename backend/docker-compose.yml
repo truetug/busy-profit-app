@@ -1,7 +1,9 @@
+name: busy-profit-app-backend
+
 services:
-  collector:
-    image: ghcr.io/truetug/busy-profit-app-collector:latest
-    container_name: busy-profit-collector
+  backend:
+    image: ghcr.io/truetug/busy-profit-app-backend:latest
+    container_name: busy-profit-app-backend
     restart: unless-stopped
     env_file:
       - ../.env

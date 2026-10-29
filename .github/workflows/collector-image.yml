@@ -1,4 +1,4 @@
-name: Build collector image
+name: Build BUSY Profit backend image
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: collector-image-${{ github.ref }}
+  group: busy-profit-backend-image-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}-collector
+          images: ghcr.io/${{ github.repository }}-backend
           tags: |
             type=raw,value=latest
             type=sha,prefix=
