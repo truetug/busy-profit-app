@@ -3,6 +3,7 @@
   "id": "app.busy.profit",
   "name": "BUSY Profit",
   "version": "0.3.0",
+  "api_version": "27.14.0",
   "description": "BUSY Bar Shopify sales statistics",
   "author": "Flipper FZCO",
   "heap_size_kib": 128,

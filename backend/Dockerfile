@@ -8,13 +8,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY backend/requirements.txt /app/backend/requirements.txt
+COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --disable-pip-version-check \
-    -r /app/backend/requirements.txt
+    -r /app/requirements.txt
 
-COPY backend/busy_shopify_stats /app/backend/busy_shopify_stats
+COPY backend/collector.py /app/collector.py
 
 RUN mkdir -p /data/public && chown -R 1001:1003 /data
 USER 1001:1003
 
-CMD ["python", "-m", "busy_shopify_stats.collector"]
+CMD ["python", "/app/collector.py"]

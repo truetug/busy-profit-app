@@ -1,2 +1,1 @@
-busylib==1.0.0
 pydantic-settings>=2.12,<3
