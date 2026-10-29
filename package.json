@@ -1,7 +1,7 @@
 {
   "name": "busy-profit-app",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "BUSY Bar sales statistics",
   "author": "Flipper FZCO",
   "type": "module",
