@@ -1,0 +1,63 @@
+# Tag 0.1.0 → release with <id>-<version>.tgz attached, whether the tag is pushed from a console or made by a release in the GitHub UI.
+# The tag must match the version in src/appmeta/manifest.json.
+
+name: Release
+
+on:
+  push:
+    tags: ["[0-9]*.[0-9]*.[0-9]*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Read the manifest
+        id: manifest
+        run: |
+          version=$(jq -er .version src/appmeta/manifest.json)
+          id=$(jq -er .id src/appmeta/manifest.json)
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME, manifest $version"
+            exit 1
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "archive=$id-$version.tgz" >> "$GITHUB_OUTPUT"
+
+      - run: pnpm typecheck
+
+      - run: pnpm build
+        env:
+          VITE_WEATHER_API: ${{ vars.WEATHER_API }}
+
+      # busy-cli --tgz names the archive after the id alone; the release carries the version too.
+      - name: Pack the release archive
+        run: tar -czf "dist/${{ steps.manifest.outputs.archive }}" -C dist "${{ steps.manifest.outputs.id }}"
+
+      # A release made from the UI already exists by the time the tag push gets here: attach the archive to it and leave whatever notes were written by hand alone.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              "dist/${{ steps.manifest.outputs.archive }}" \
+              --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              "dist/${{ steps.manifest.outputs.archive }}" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi

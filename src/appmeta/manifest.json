@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "id": "app.busy.profit",
+  "name": "BUSY Profit",
+  "version": "0.3.0",
+  "description": "BUSY Bar Shopify sales statistics",
+  "author": "Flipper FZCO",
+  "heap_size_kib": 128,
+  "debug": false
+}

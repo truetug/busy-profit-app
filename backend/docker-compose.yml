@@ -1,0 +1,18 @@
+services:
+  collector:
+    image: ghcr.io/truetug/busy-profit-app-collector:latest
+    container_name: busy-profit-collector
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      SHOPIFY_STATS_HISTORY_PATH: /data/history.csv
+      SHOPIFY_STATS_PUBLISH_PATH: /data/public/history.csv
+      SHOPIFY_STATS_POLLING_INTERVAL_SECONDS: "60"
+    volumes:
+      - ../data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
