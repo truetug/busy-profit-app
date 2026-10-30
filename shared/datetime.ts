@@ -22,3 +22,8 @@ export function formatWeekday(d: Date): string {
 export function formatDay(d: Date): string {
   return String(d.getDate());
 }
+
+/** Date and local time in the same concise format as the Weather screen. */
+export function formatDateTime(d: Date): string {
+  return `${formatDay(d)} ${formatMonth(d)}, ${formatHM(d)}`;
+}

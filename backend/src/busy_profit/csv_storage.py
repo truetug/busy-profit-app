@@ -2,7 +2,7 @@
 
 import csv
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -83,8 +83,8 @@ class CsvHistoryRepository:
         return [item for item in self.read() if item.observed_at >= cutoff]
 
 
-class HourlyCsvPublisher:
-    """Publish the newest retained observation per local hour atomically."""
+class DisplayHistoryCsvPublisher:
+    """Publish daily history plus the latest 49 hourly observations atomically."""
 
     def __init__(self, path: Path, timezone_name: str) -> None:
         """Configure the public projection destination and display timezone."""
@@ -92,13 +92,33 @@ class HourlyCsvPublisher:
         self._timezone = ZoneInfo(timezone_name)
 
     def publish(self, points: list[SalesObservation]) -> None:
-        """Write the latest cumulative observation from each local hour to CSV."""
+        """Keep graph-resolution daily points and high-resolution recent hours."""
         by_hour: dict[datetime, SalesObservation] = {}
+        by_day: dict[date, SalesObservation] = {}
         for point in points:
             local_time = point.observed_at.astimezone(self._timezone)
             hour = local_time.replace(minute=0, second=0, microsecond=0)
             by_hour[hour] = point
+            by_day[local_time.date()] = point
+
+        if not by_hour:
+            CsvHistoryRepository(self._path).rewrite(self._path, [])
+            return
+
+        latest_hour = max(by_hour)
+        recent_start = latest_hour - timedelta(hours=48)
+        recent_hours = [
+            point
+            for hour, point in by_hour.items()
+            if hour >= recent_start
+        ]
+        older_daily = [
+            point
+            for day, point in by_day.items()
+            if day < recent_start.date()
+        ]
+        projection = {point.observed_at: point for point in older_daily + recent_hours}
         CsvHistoryRepository(self._path).rewrite(
             self._path,
-            sorted(by_hour.values(), key=lambda item: item.observed_at),
+            sorted(projection.values(), key=lambda item: item.observed_at),
         )

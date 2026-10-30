@@ -29,10 +29,10 @@ class HistoryRepository(Protocol):
 
 
 class HistoryPublisher(Protocol):
-    """Describe the output port for the compact public hourly projection."""
+    """Describe the output port for the compact public display projection."""
 
     def publish(self, points: list[SalesObservation]) -> None:
-        """Publish retained observations in the format consumed by the app."""
+        """Publish retained points in the compact format consumed by the app."""
         ...
 
 

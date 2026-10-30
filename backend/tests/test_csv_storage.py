@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from busy_profit.csv_storage import CsvHistoryRepository, HourlyCsvPublisher
+from busy_profit.csv_storage import CsvHistoryRepository, DisplayHistoryCsvPublisher
 from busy_profit.models import SalesObservation
 
 
@@ -49,10 +49,10 @@ def test_repository_rejects_unknown_csv_schema(tmp_path) -> None:
         CsvHistoryRepository(path).read()
 
 
-def test_hourly_publisher_keeps_latest_point_per_local_hour(tmp_path) -> None:
-    """Publish one latest observation per hour using the configured timezone."""
+def test_display_publisher_keeps_recent_hourly_points(tmp_path) -> None:
+    """Preserve hourly detail for short graphs and the prior-day comparison."""
     path = tmp_path / "public" / "history.csv"
-    publisher = HourlyCsvPublisher(path, "UTC")
+    publisher = DisplayHistoryCsvPublisher(path, "UTC")
     first = observation(datetime(2026, 10, 30, 10, 5, tzinfo=UTC), 500)
     latest = observation(datetime(2026, 10, 30, 10, 55, tzinfo=UTC), 510)
     next_hour = observation(datetime(2026, 10, 30, 11, 2, tzinfo=UTC), 511)
@@ -64,3 +64,22 @@ def test_hourly_publisher_keeps_latest_point_per_local_hour(tmp_path) -> None:
         (latest.observed_at, 510),
         (next_hour.observed_at, 511),
     ]
+
+
+def test_display_publisher_sparsifies_old_days_but_keeps_recent_49_hours(tmp_path) -> None:
+    """Reduce a ten-day hourly history to daily anchors and the latest 49 hours."""
+    path = tmp_path / "public" / "history.csv"
+    publisher = DisplayHistoryCsvPublisher(path, "UTC")
+    start = datetime(2026, 10, 20, 12, tzinfo=UTC)
+    points = [
+        observation(start + timedelta(hours=hour), 1000 + hour)
+        for hour in range(10 * 24 + 1)
+    ]
+
+    publisher.publish(points)
+
+    published = CsvHistoryRepository(path).read()
+    assert len(published) == 57
+    assert published[-49].observed_at == datetime(2026, 10, 28, 12, tzinfo=UTC)
+    assert published[-1] == points[-1]
+    assert published[0].observed_at == datetime(2026, 10, 20, 23, tzinfo=UTC)

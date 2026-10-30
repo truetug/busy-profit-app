@@ -36,11 +36,11 @@ jobs:
           echo "id=$id" >> "$GITHUB_OUTPUT"
           echo "archive=$id-$version.tgz" >> "$GITHUB_OUTPUT"
 
+      - run: pnpm test
+
       - run: pnpm typecheck
 
       - run: pnpm build
-        env:
-          VITE_WEATHER_API: ${{ vars.WEATHER_API }}
 
       # busy-cli --tgz names the archive after the id alone; the release carries the version too.
       - name: Pack the release archive

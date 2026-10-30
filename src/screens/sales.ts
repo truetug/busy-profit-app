@@ -1,64 +1,119 @@
-import { column, generateXpm2, row, SCREEN, type Node } from "@busy-app/busy-lib";
-import { increments, lifetimeAverage, type Point, type SalesView } from "../model/sales.ts";
+import { column, row, SCREEN, stack, type Node } from "@busy-app/busy-lib";
+import { dailySales, increments, type Point, type SalesView } from "../model/sales.ts";
+import type { HomePhase } from "../model/navigation.ts";
+import { formatDateTime } from "../../shared/datetime.ts";
+import { dailySalesIcon, dailySalesIconFromHeights, historicalSalesIcon, SALES_ERROR_COLOR } from "./sales-chart.ts";
+import { salesHeadline } from "./sales-format.ts";
+import { SALES_CHART_ICON_ID, SALES_LOADING_ICON_ID } from "./sales-ids.ts";
 
 const WHITE = "#FFFFFFFF";
 const MUTED = "#A0A0A0FF";
-const RED = "#FF3838";
+const DIM = "#AAAAAAFF";
+const GAP = 3;
+const SUB_DY = -1;
+const TEXT_W = SCREEN.width - 16 - GAP;
 type Screen = SalesView;
 
-/** Maps a volume to red for high sales and green for low sales. */
-function color(value: number, max: number): string {
-  const strength = max === 0 ? 0 : Math.min(1, value / max);
-  const red = Math.round(51 + strength * 204);
-  const green = Math.round(204 - strength * 168);
-  return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}44`;
+/** Renders the complete 28-day chart and the selected day's highlighted sales column. */
+function renderDailyGraph(points: Point[], now: Date, selectedDay: number): Node {
+  const days = dailySales(points, now);
+  const selected = days[Math.min(Math.max(selectedDay, 0), days.length - 1)]!;
+  const selectedDate = new Date(selected.atMs);
+  return column({ justify: "between", height: SCREEN.height }, [
+    row({ justify: "between", align: "center", width: SCREEN.width }, [
+      {
+        type: "text", id: "sales-selected-day",
+        text: `${String(selectedDate.getDate()).padStart(2, "0")}.${String(selectedDate.getMonth() + 1).padStart(2, "0")}  ${selected.count}`,
+        font: "small", color: WHITE,
+      },
+      { type: "text", id: "sales-history-label", text: "28D", font: "small", color: MUTED },
+    ]),
+    stack({ width: SCREEN.width, height: 9 }, [
+      { type: "xpmbitmap", id: "sales-chart", data: historicalSalesIcon(days.map((day) => day.count), SCREEN.width, 9, selectedDay), width: SCREEN.width, height: 9, opacity: 100 },
+    ]),
+  ]);
 }
 
-/** Builds a full-width bar bitmap, tallest at the maximum and with an empty-slot baseline. */
-function chart(values: number[], width: number, height: number): string {
-  const max = Math.max(1, ...values);
-  const grid = Array.from({ length: height }, () => Array<string>(width).fill("."));
-  const palette: Record<string, string> = { ".": "None" };
-  const symbols = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const barWidth = Math.max(1, Math.floor(width / values.length));
-  values.forEach((value, index) => {
-    const symbol = symbols[index % symbols.length]!;
-    palette[symbol] = color(value, max);
-    const barHeight = Math.round((value / max) * height);
-    const xStart = index * barWidth;
-    for (let y = height - barHeight; y < height; y++) {
-      if (y < 0) continue;
-      for (let x = xStart; x < Math.min(width, xStart + barWidth); x++) grid[y]![x] = symbol;
-    }
-  });
-  return generateXpm2({ palette, grid: grid.map((line) => line.join("")) });
-}
-
-/** Renders the selected sales view: headline metrics, hourly activity, or the last 28 days. */
+/** Renders the four-day sales overview or the selected day in the full history chart. */
 export function renderSalesScreen(args: {
   screen: Screen;
+  homePhase: HomePhase;
   now: Date;
   count?: number;
   points: Point[];
+  selectedDay: number;
   stale: boolean;
+  iconHeights?: number[];
+  error?: string;
 }): Node {
-  const { screen, now, count, points, stale } = args;
-  const label = screen === "current" ? "SALES" : screen === "hours" ? "BY HOUR · 24H" : "BY DAY · 28D";
-  const chartValues = screen === "hours" ? increments(points, "hour", now) : increments(points, "day", now);
-  const bitmap = chart(chartValues, SCREEN.width, 9);
-  const timestamp = `${String(now.getDate()).padStart(2, "0")}.${String(now.getMonth() + 1).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  const info: Node = column({ justify: "between", height: 6 }, [
-    row({ justify: "between", width: SCREEN.width }, [
-      { type: "text", id: "sales-label", text: label, font: "small", color: MUTED },
-      { type: "text", id: "sales-time", text: stale ? "STALE" : timestamp, font: "small", color: stale ? RED : MUTED },
-    ]),
-    row({ justify: "between", width: SCREEN.width, align: "center" }, [
-      { type: "text", id: "sales-count", text: count === undefined ? "NO DATA" : `${count.toLocaleString()} BARS`, font: "global", color: WHITE },
-      { type: "text", id: "sales-average", text: count === undefined ? "" : lifetimeAverage(count, now), font: "small", color: WHITE },
-    ]),
-  ]);
-  return column({ justify: "between", height: SCREEN.height }, [
-    info,
-    { type: "xpmbitmap", id: "sales-chart", data: bitmap, width: SCREEN.width, height: 9, opacity: 100 },
-  ]);
+  const { screen, homePhase, now, count, points, selectedDay, stale, iconHeights, error } = args;
+  if (screen === "days") return renderDailyGraph(points, now, selectedDay);
+
+  if (screen === "home") {
+    const date = formatDateTime(now);
+    const isLoading = count === undefined && !error;
+    const days = dailySales(points, now, 4);
+    const headline = count === undefined ? undefined : salesHeadline(count, now);
+    const mark: Node = isLoading
+      ? {
+          type: "animation",
+          id: SALES_LOADING_ICON_ID,
+          path: "animations/sales_loading.anim",
+          loop: true,
+          await_previous_end: false,
+          opacity: 100,
+          width: 16,
+          height: 16,
+        }
+      : {
+          type: "xpmbitmap",
+          id: SALES_CHART_ICON_ID,
+          data: iconHeights
+            ? dailySalesIconFromHeights(iconHeights, 16, 16)
+            : dailySalesIcon(increments(points, "day", now, 4), 16, 16),
+          width: 16,
+          height: 16,
+          opacity: 100,
+        };
+    return row({ align: "center", gap: GAP, width: SCREEN.width, height: SCREEN.height }, [
+        mark,
+        column({ justify: "between", height: SCREEN.height }, [
+          homePhase === "recent-days" && count !== undefined
+            ? row({ align: "center", justify: "between", width: TEXT_W }, days.map((day, index) => ({
+                type: "text" as const,
+                id: `sales-recent-count-${index}`,
+                text: String(day.count),
+                font: "small",
+                color: WHITE,
+              })))
+            : headline
+              ? row({ align: "center", gap: 1 }, [
+                  {
+                    type: "text", id: "sales-count", text: headline.count,
+                    font: "bold", color: WHITE, dy: 1,
+                  },
+                  {
+                    type: "text", id: "sales-days", text: headline.days,
+                    font: "small", color: DIM,
+                  },
+                ])
+            : {
+                type: "text",
+                id: "sales-count",
+                text: error ? "NO DATA" : "LOADING",
+                font: "bold",
+                color: WHITE,
+                dy: 1,
+              },
+          {
+            type: "text", id: "sales-info",
+            text: count === undefined && error ? `${error} · retrying` : date,
+            font: "small", color: error || stale ? SALES_ERROR_COLOR : DIM, width: TEXT_W, dy: SUB_DY,
+            scroll_rate: 600, scroll_start_delay: 400, scroll_repeat_delay: 800,
+          },
+        ]),
+      ]);
+  }
+
+  return renderDailyGraph(points, now, selectedDay);
 }

@@ -40,7 +40,7 @@ type BusyInputEvent =
     }
   | {
       readonly key: 'ok' | 'start' | 'back'
-      readonly action: 'press' | 'release'
+      readonly action: 'press' | 'release' | 'short' | 'long' | 'repeat'
     }
 
 /** Detaches the handler. The runtime may stop the app once nothing else keeps it alive. */
