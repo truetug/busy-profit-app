@@ -12,6 +12,10 @@ Four-day sales after scrolling the encoder:
 
 ![Sales for the last four days](screenshots/four-day-counts.png)
 
+28-day chart with the selected day highlighted (sample data):
+
+![28-day sales chart with the selected day highlighted](screenshots/chart-28-days.png)
+
 ## Setup and build
 
 ```sh
