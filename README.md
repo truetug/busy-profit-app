@@ -2,6 +2,16 @@
 
 BUSY Profit is a BUSY Bar sales app with lifetime and four-day totals, a 28-day chart, and a live sales icon. Press Start to open the chart; scroll the encoder to switch home metrics or select a chart day.
 
+## Screenshots
+
+Default lifetime summary:
+
+![Lifetime sales and selling days](screenshots/lifetime-summary.png)
+
+Four-day sales after scrolling the encoder:
+
+![Sales for the last four days](screenshots/four-day-counts.png)
+
 ## Setup and build
 
 ```sh
