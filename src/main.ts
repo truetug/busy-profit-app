@@ -9,7 +9,7 @@ import { actionForInput } from "./input.ts";
 import { startMinuteClock } from "./minute-clock.ts";
 import { dailySalesHeights, interpolateBarHeights } from "./screens/sales-chart.ts";
 import { SALES_LOADING_ICON_ID } from "./screens/sales-ids.ts";
-import { clampNegativeY, clearDisplay, fetchWithTimeout, staleElementIds } from "./display-api.ts";
+import { clampNegativeY, clearDisplay, fetchWithTimeout, mergeDrawnElementIds, staleElementIds } from "./display-api.ts";
 import { INITIAL_HOME_PHASE, moveDayCursor, nextHomePhase, type HomePhase } from "./model/navigation.ts";
 import { SALES_HISTORY_DAYS } from "./model/sales.ts";
 import { createTaskScope } from "./task-scope.ts";
@@ -88,6 +88,10 @@ async function draw(): Promise<void> {
         lastDrawError = message;
       }
       if (exiting) return;
+      if (drawSucceeded && pendingDraw) {
+        activeElementIds = mergeDrawnElementIds(activeElementIds, nextElementIds);
+        continue;
+      }
       if (drawSucceeded && staleIds.length > 0) {
         try {
           await clearDisplay(

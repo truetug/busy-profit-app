@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clampNegativeY, clearDisplay, fetchWithTimeout, staleElementIds } from "../src/display-api.ts";
+import { clampNegativeY, clearDisplay, fetchWithTimeout, mergeDrawnElementIds, staleElementIds } from "../src/display-api.ts";
 
 test("clamps a negative top coordinate without changing valid elements", () => {
   const elements = [
@@ -63,4 +63,12 @@ test("identifies display elements absent from the next rendered frame", () => {
   assert.deepEqual(staleElementIds(["sales-count", "sales-info", "sales-mark"], ["sales-recent-count-0"]), [
     "sales-count", "sales-info", "sales-mark",
   ]);
+});
+
+test("keeps all potentially visible IDs when a newer frame preempts cleanup", () => {
+  const visible = mergeDrawnElementIds(["old", "shared"], ["shared", "intermediate"]);
+  const afterNextFrame = mergeDrawnElementIds(visible, ["latest", "shared"]);
+
+  assert.deepEqual(afterNextFrame, ["old", "shared", "intermediate", "latest"]);
+  assert.deepEqual(staleElementIds(afterNextFrame, ["latest", "shared"]), ["old", "intermediate"]);
 });

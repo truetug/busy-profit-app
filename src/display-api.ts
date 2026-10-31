@@ -50,3 +50,8 @@ export function clampNegativeY<T extends { y?: number }>(elements: T[]): T[] {
 export function staleElementIds(previousIds: string[], nextIds: string[]): string[] {
   return previousIds.filter((id) => !nextIds.includes(id));
 }
+
+/** Tracks all elements that may remain on screen until a deferred cleanup succeeds. */
+export function mergeDrawnElementIds(previousIds: string[], nextIds: string[]): string[] {
+  return [...new Set([...previousIds, ...nextIds])];
+}
