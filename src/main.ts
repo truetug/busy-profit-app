@@ -12,6 +12,7 @@ import { SALES_LOADING_ICON_ID } from "./screens/sales-ids.ts";
 import { clampNegativeY, clearDisplay, fetchWithTimeout, staleElementIds } from "./display-api.ts";
 import { INITIAL_HOME_PHASE, moveDayCursor, nextHomePhase, type HomePhase } from "./model/navigation.ts";
 import { SALES_HISTORY_DAYS } from "./model/sales.ts";
+import { createTaskScope } from "./task-scope.ts";
 
 const APP = manifest.id;
 const REFRESH_MS = 5 * 60 * 1000;
@@ -20,6 +21,7 @@ const CHART_TRANSITION_DELAY_MS = 500;
 const DISPLAY_REQUEST_TIMEOUT_MS = 8_000;
 const apiOrigin = /^https?:\/\//i.test(addr) ? addr : `http://${addr}`;
 const DISPLAY_DRAW_URL = `${apiOrigin.replace(/\/$/, "")}/api/display/draw`;
+const tasks = createTaskScope();
 
 type Screen = SalesView;
 
@@ -85,6 +87,7 @@ async function draw(): Promise<void> {
         if (message !== lastDrawError) console.error(`${APP}: display draw failed: ${message}`);
         lastDrawError = message;
       }
+      if (exiting) return;
       if (drawSucceeded && staleIds.length > 0) {
         try {
           await clearDisplay(
@@ -95,6 +98,7 @@ async function draw(): Promise<void> {
           );
           activeElementIds = nextElementIds;
         } catch (error) {
+          if (exiting) return;
           console.warn(`${APP}: selected stale-element cleanup failed; clearing and redrawing: ${error instanceof Error ? error.message : String(error)}`);
           try {
             await clearDisplay(
@@ -133,16 +137,13 @@ function startFetchHeartbeat(): () => void {
     seconds += 1;
     console.info(`${APP}: waiting for sales history (${seconds}s)`);
   }, 1_000);
+  const unregister = tasks.register(() => clearInterval(timer));
   return () => {
     if (!running) return;
     running = false;
     clearInterval(timer);
+    unregister();
   };
-}
-
-/** Waits between generated chart frames while native display rendering remains asynchronous. */
-function wait(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 /** Animates the four-day icon from the previously displayed sales values to the refreshed values. */
@@ -157,11 +158,12 @@ async function animateChartTransition(previous: Point[], next: Point[]): Promise
 
   iconHeights = start;
   await draw();
-  await wait(CHART_TRANSITION_DELAY_MS);
+  await tasks.sleep(CHART_TRANSITION_DELAY_MS);
   for (const frame of interpolateBarHeights(start, target, CHART_TRANSITION_STEPS)) {
+    if (exiting || screen !== "home") break;
     iconHeights = frame;
     await draw();
-    await wait(CHART_TRANSITION_DELAY_MS);
+    await tasks.sleep(CHART_TRANSITION_DELAY_MS);
   }
   iconHeights = undefined;
 }
@@ -174,6 +176,7 @@ async function refresh(): Promise<void> {
     const previous = count;
     const previousPoints = points;
     const nextPoints = await fetchHistory();
+    if (exiting) return;
     points = nextPoints;
     loadError = undefined;
     count = points[points.length - 1]!.count;
@@ -189,6 +192,7 @@ async function refresh(): Promise<void> {
         console.info(`${APP}: loading icon cleared`);
         activeElementIds = activeElementIds.filter((id) => id !== SALES_LOADING_ICON_ID);
       } catch (error) {
+        if (exiting) return;
         console.warn(`${APP}: selected loading-icon cleanup failed; clearing app display: ${error instanceof Error ? error.message : String(error)}`);
         try {
           await clearDisplay(
@@ -203,8 +207,9 @@ async function refresh(): Promise<void> {
         }
       }
     }
+    if (exiting) return;
     await animateChartTransition(previousPoints, points);
-    if (previous !== undefined && count > previous) {
+    if (!exiting && previous !== undefined && count > previous) {
       const crossedHundred = Math.floor(count / 100) > Math.floor(previous / 100);
       await device.AudioPlay({
         application_name: APP,
@@ -228,6 +233,7 @@ async function refresh(): Promise<void> {
 function exitApp(): void {
   if (exiting) return;
   exiting = true;
+  tasks.stop();
   if (refreshTimer !== undefined) clearInterval(refreshTimer);
   refreshTimer = undefined;
   stopClock?.();
