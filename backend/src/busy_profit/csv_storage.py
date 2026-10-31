@@ -84,25 +84,38 @@ class CsvHistoryRepository:
 
 
 class DisplayHistoryCsvPublisher:
-    """Publish daily history plus the latest 49 hourly observations atomically."""
+    """Publish legacy history and a compact eight-day display projection."""
 
     def __init__(self, path: Path, timezone_name: str) -> None:
-        """Configure the public projection destination and display timezone."""
+        """Configure separate history and current projection destinations.
+
+        Keep day boundaries aligned to the display timezone.
+        """
         self._path = path
+        self._current_path = path.with_name("current.csv")
+        if self._path == self._current_path:
+            raise ValueError("display history and current CSV paths must differ")
         self._timezone = ZoneInfo(timezone_name)
 
     def publish(self, points: list[SalesObservation]) -> None:
-        """Keep graph-resolution daily points and high-resolution recent hours."""
+        """Publish the legacy projection and eight recent days separately.
+
+        Replace each CSV atomically while preserving recent hourly detail.
+        """
         by_hour: dict[datetime, SalesObservation] = {}
         by_day: dict[date, SalesObservation] = {}
         for point in points:
             local_time = point.observed_at.astimezone(self._timezone)
             hour = local_time.replace(minute=0, second=0, microsecond=0)
-            by_hour[hour] = point
-            by_day[local_time.date()] = point
+            if hour not in by_hour or point.observed_at > by_hour[hour].observed_at:
+                by_hour[hour] = point
+            day = local_time.date()
+            if day not in by_day or point.observed_at > by_day[day].observed_at:
+                by_day[day] = point
 
         if not by_hour:
             CsvHistoryRepository(self._path).rewrite(self._path, [])
+            CsvHistoryRepository(self._current_path).rewrite(self._current_path, [])
             return
 
         latest_hour = max(by_hour)
@@ -121,4 +134,22 @@ class DisplayHistoryCsvPublisher:
         CsvHistoryRepository(self._path).rewrite(
             self._path,
             sorted(projection.values(), key=lambda item: item.observed_at),
+        )
+        latest = max(points, key=lambda point: point.observed_at)
+        start_day = latest.observed_at.astimezone(self._timezone).date() - timedelta(days=7)
+        earlier = [
+            point
+            for day, point in by_day.items()
+            if day < start_day
+        ]
+        recent = [
+            point
+            for day, point in by_day.items()
+            if day >= start_day
+        ]
+        if earlier:
+            recent.append(max(earlier, key=lambda point: point.observed_at))
+        CsvHistoryRepository(self._current_path).rewrite(
+            self._current_path,
+            sorted(recent, key=lambda point: point.observed_at),
         )

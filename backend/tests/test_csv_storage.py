@@ -83,3 +83,67 @@ def test_display_publisher_sparsifies_old_days_but_keeps_recent_49_hours(tmp_pat
     assert published[-49].observed_at == datetime(2026, 10, 28, 12, tzinfo=UTC)
     assert published[-1] == points[-1]
     assert published[0].observed_at == datetime(2026, 10, 20, 23, tzinfo=UTC)
+
+
+def test_display_publisher_writes_latest_daily_observation_to_current_csv(tmp_path) -> None:
+    """Publish the newest daily sample even when observations are unordered.
+
+    A falling count remains visible instead of being replaced by the largest count.
+    """
+    path = tmp_path / "public" / "history.csv"
+    publisher = DisplayHistoryCsvPublisher(path, "UTC")
+    older = observation(datetime(2026, 10, 30, 10, 5, tzinfo=UTC), 510)
+    latest = observation(datetime(2026, 10, 30, 10, 55, tzinfo=UTC), 500)
+
+    publisher.publish([latest, older])
+
+    current_path = path.with_name("current.csv")
+    assert CsvHistoryRepository(current_path).read() == [latest]
+    assert not current_path.with_name(".current.csv.tmp").exists()
+    assert CsvHistoryRepository(path).read() == [latest]
+
+
+def test_current_csv_keeps_eight_local_days_and_a_previous_day_anchor(tmp_path) -> None:
+    """Keep daily endpoints and the preceding anchor for the eight-day chart.
+
+    Boundaries follow the configured timezone, and current day uses the latest sample.
+    """
+    path = tmp_path / "history.csv"
+    publisher = DisplayHistoryCsvPublisher(path, "Europe/Moscow")
+    start = datetime(2026, 10, 20, 21, 30, tzinfo=UTC)
+    points = [
+        observation(start + timedelta(hours=hour), 1000 + hour)
+        for hour in range(10 * 24 + 1)
+    ]
+
+    publisher.publish(list(reversed(points)))
+
+    current = CsvHistoryRepository(path.with_name("current.csv")).read()
+    assert len(current) == 9
+    assert current[0].observed_at == datetime(2026, 10, 23, 20, 30, tzinfo=UTC)
+    assert current[-1] == points[-1]
+    assert all(a.observed_at < b.observed_at for a, b in zip(current, current[1:]))
+
+
+def test_display_publisher_clears_current_csv_when_history_is_empty(tmp_path) -> None:
+    """Publish an empty, valid CSV instead of leaving an obsolete count visible.
+
+    Both the legacy projection and the current snapshot keep their schema.
+    """
+    path = tmp_path / "history.csv"
+    publisher = DisplayHistoryCsvPublisher(path, "UTC")
+    publisher.publish([observation(datetime(2026, 10, 30, 10, tzinfo=UTC), 5)])
+
+    publisher.publish([])
+
+    assert CsvHistoryRepository(path.with_name("current.csv")).read() == []
+    assert CsvHistoryRepository(path).read() == []
+
+
+def test_display_publisher_rejects_colliding_paths(tmp_path) -> None:
+    """Reject a configuration that would overwrite the legacy history projection.
+
+    The current snapshot and historical series must be separate files.
+    """
+    with pytest.raises(ValueError, match="paths must differ"):
+        DisplayHistoryCsvPublisher(tmp_path / "current.csv", "UTC")

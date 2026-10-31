@@ -39,6 +39,8 @@ The Python backend in `backend/src/busy_profit` is separated by responsibility: 
 
 By default, the collector polls Shopify Stats once per minute, stores every sample in a private rolling 28-day CSV, and writes a monthly CSV archive. For the JS app, it atomically publishes a compact CSV with daily anchor points and the latest 49 hourly observations (about 75 rows instead of 672) at `https://profit.busy.truetug.info/history.csv`. The original minute-level history remains unchanged. On first startup, history begins with the first successful sample.
 
+The collector also atomically publishes `current.csv` beside the history projection with the same header, daily endpoints for the latest eight local calendar days, and the nearest earlier daily anchor when available. The last row is the newest observation. Each CSV is replaced independently; readers must not assume the two files update as one transaction.
+
 The source URL and Basic Auth are configured only through the `SHOPIFY_STATS_SOURCE_URL`, `SHOPIFY_STATS_BASIC_AUTH_USERNAME`, and `SHOPIFY_STATS_BASIC_AUTH_PASSWORD` environment variables; setting names are documented in `backend/.env.example`. Real values are not included in Git, the JS bundle, the Docker image, or logs. On `sh`, the Git checkout remains `/srv/busy-profit-app` (the repository name), while the Compose service/container and image are named `busy-profit-app-backend`. Persistent CSV files and the public history remain in `/srv/busy-profit-app/data`.
 
 A Shopify count decrease updates the displayed total without creating a negative chart column. When sales increase, the Bar plays cha-ching; crossing a hundred-sales threshold plays applause.
