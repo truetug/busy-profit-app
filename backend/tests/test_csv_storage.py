@@ -1,5 +1,6 @@
 """Tests for rolling, monthly, and published sales CSV histories."""
 
+import csv
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -15,6 +16,20 @@ def observation(at: datetime, bars_sold: int) -> SalesObservation:
         bars_sold=bars_sold,
         source_updated_at=at,
     )
+
+
+def read_compact(path) -> list[SalesObservation]:
+    """Read public rows and validate their exact two-column schema.
+
+    Reconstruct the unused source timestamp only for comparisons in tests.
+    """
+    with path.open(encoding="utf-8", newline="") as stream:
+        reader = csv.DictReader(stream)
+        assert reader.fieldnames == ["observed_at", "bars_sold"]
+        return [
+            observation(datetime.fromisoformat(row["observed_at"]), int(row["bars_sold"]))
+            for row in reader
+        ]
 
 
 def test_repository_keeps_38_days_and_archives_by_calendar_month(tmp_path) -> None:
@@ -149,9 +164,29 @@ def test_display_publisher_writes_latest_daily_observation_to_current_csv(tmp_pa
     publisher.publish([latest, older])
 
     current_path = path.with_name("current.csv")
-    assert CsvHistoryRepository(current_path).read() == [latest]
+    assert read_compact(current_path) == [latest]
     assert not current_path.with_name(".current.csv.tmp").exists()
     assert CsvHistoryRepository(path).read() == [latest]
+
+
+def test_compact_feeds_omit_source_timestamp_without_changing_archive(tmp_path) -> None:
+    """Keep the source timestamp in durable history but omit it from public feeds.
+
+    The legacy public history stays compatible with older application versions.
+    """
+    at = datetime(2026, 10, 30, 12, tzinfo=UTC)
+    point = SalesObservation(observed_at=at, bars_sold=500, source_updated_at=at - timedelta(minutes=5))
+    archive = tmp_path / "history.csv"
+    repository = CsvHistoryRepository(archive)
+    points = repository.save(point)
+    public = tmp_path / "public" / "history.csv"
+
+    DisplayHistoryCsvPublisher(public, "UTC").publish(points)
+
+    assert repository.read(tmp_path / "history-2026-10.csv") == [point]
+    assert CsvHistoryRepository(public).read() == [point]
+    assert read_compact(public.with_name("current.csv")) == [observation(at, 500)]
+    assert read_compact(public.with_name("older.csv")) == []
 
 
 def test_current_csv_keeps_eight_local_days_and_a_previous_day_anchor(tmp_path) -> None:
@@ -169,7 +204,7 @@ def test_current_csv_keeps_eight_local_days_and_a_previous_day_anchor(tmp_path) 
 
     publisher.publish(list(reversed(points)))
 
-    current = CsvHistoryRepository(path.with_name("current.csv")).read()
+    current = read_compact(path.with_name("current.csv"))
     assert len(current) == 9
     assert current[0].observed_at == datetime(2026, 10, 23, 20, 30, tzinfo=UTC)
     assert current[-1] == points[-1]
@@ -191,8 +226,8 @@ def test_older_csv_combines_with_current_into_36_days(tmp_path) -> None:
 
     publisher.publish(points)
 
-    older = CsvHistoryRepository(path.with_name("older.csv")).read()
-    current = CsvHistoryRepository(path.with_name("current.csv")).read()
+    older = read_compact(path.with_name("older.csv"))
+    current = read_compact(path.with_name("current.csv"))
     assert len(older) == 29
     assert len(current) == 9
     assert older[0].observed_at.date().isoformat() == "2026-09-24"
@@ -213,8 +248,8 @@ def test_display_publisher_clears_current_csv_when_history_is_empty(tmp_path) ->
 
     publisher.publish([])
 
-    assert CsvHistoryRepository(path.with_name("current.csv")).read() == []
-    assert CsvHistoryRepository(path.with_name("older.csv")).read() == []
+    assert read_compact(path.with_name("current.csv")) == []
+    assert read_compact(path.with_name("older.csv")) == []
     assert CsvHistoryRepository(path).read() == []
 
 

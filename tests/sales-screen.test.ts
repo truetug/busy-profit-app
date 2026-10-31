@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderSalesScreen } from "../src/screens/sales.ts";
+import { dailyGraphElements, renderSalesScreen } from "../src/screens/sales.ts";
 
 type ScreenNode = {
   type?: string;
@@ -8,6 +8,12 @@ type ScreenNode = {
   text?: string;
   data?: string;
   dx?: number;
+  dy?: number;
+  z_index?: number;
+  font?: string;
+  justify?: string;
+  width?: number;
+  height?: number;
   children?: ScreenNode[];
 };
 
@@ -23,42 +29,70 @@ function flatten(node: ScreenNode): ScreenNode[] {
   return [node, ...(node.children ?? []).flatMap(flatten)];
 }
 
-test("shows four daily sales figures in the headline while keeping the icon and date line", () => {
+test("renders lifetime sales, selling days, and an eight-column icon", () => {
   const tree = renderSalesScreen({
-    screen: "home", homePhase: "recent-days", now: new Date(2026, 9, 30, 12),
-    count: 145, points, selectedDay: 27, stale: false,
-  }) as ScreenNode;
-  const elements = flatten(tree);
-
-  assert.deepEqual(elements.filter((item) => item.id?.startsWith("sales-recent-count-")).map((item) => item.text), ["0", "10", "15", "20"]);
-  assert.equal(elements.find((item) => item.id === "sales-mark")?.type, "xpmbitmap");
-  assert.ok(elements.find((item) => item.id === "sales-info")?.text);
-  assert.equal(elements.some((item) => item.id === "sales-days" || item.id === "sales-count"), false);
-});
-
-test("renders lifetime sales and selling days in the alternate manual home phase", () => {
-  const tree = renderSalesScreen({
-    screen: "home", homePhase: "summary", now: new Date(2026, 9, 30, 12),
-    count: 145, points, selectedDay: 27, stale: false,
+    screen: "home", now: new Date(2026, 9, 30, 12),
+    count: 145, points, selectedDay: 35, stale: false,
   }) as ScreenNode;
   const elements = flatten(tree);
 
   assert.equal(elements.find((item) => item.id === "sales-count")?.text, "145");
-  assert.equal(elements.find((item) => item.id === "sales-days")?.text, "/ 108d");
+  assert.equal(elements.find((item) => item.id === "sales-days")?.text, "108");
+  assert.equal(elements.find((item) => item.id === "sales-days")?.font, "tiny");
+  assert.equal(elements.find((item) => item.children?.some((child) => child.id === "sales-days"))?.justify, "between");
   assert.equal(elements.find((item) => item.id === "sales-mark")?.type, "xpmbitmap");
+  assert.match(elements.find((item) => item.id === "sales-mark")?.data ?? "", /16 16 9 1/);
   assert.ok(elements.find((item) => item.id === "sales-info")?.text);
 });
 
-test("renders the full-width 28-day chart with selected date, count, and cursor", () => {
-  const tree = renderSalesScreen({
-    screen: "days", homePhase: "recent-days", now: new Date(2026, 9, 30, 12),
-    count: 145, points, selectedDay: 27, stale: false,
-  }) as ScreenNode;
-  const elements = flatten(tree);
+test("renders the full-width 36-day chart with selected date and count", () => {
+  const elements = dailyGraphElements(points, new Date(2026, 9, 30, 12), 35);
 
-  assert.equal(elements.find((item) => item.id === "sales-selected-day")?.text, "30.10  20");
-  assert.equal(elements.find((item) => item.id === "sales-history-label")?.text, "28D");
+  assert.equal(elements.find((item) => item.id === "sales-selected-day" && item.type === "text")?.text, "30.10  20");
+  assert.equal(elements.find((item) => item.id === "sales-history-label" && item.type === "text")?.text, "36D");
   assert.equal(elements.find((item) => item.id === "sales-chart")?.type, "xpmbitmap");
-  assert.equal(elements.some((item) => item.id === "sales-day-marker"), false);
-  assert.ok(elements.find((item) => item.id === "sales-chart")?.data?.includes("#FFFFFF"));
+  assert.equal(elements.find((item) => item.id === "sales-day-marker")?.type, "rectangle");
+  assert.equal(elements.find((item) => item.id === "sales-day-marker")?.x, 70);
+  assert.equal(elements.find((item) => item.id === "sales-day-marker")?.z_index, 5);
+  assert.equal(elements.find((item) => item.id === "sales-weekends")?.y, 15);
+});
+
+test("marks Saturdays and Sundays in the bottom row", () => {
+  const weekend = dailyGraphElements(points, new Date(2026, 9, 30, 12), 35)
+    .find((item) => item.id === "sales-weekends" && item.type === "xpmbitmap");
+  assert.ok(weekend?.data?.includes("#808080"));
+  const row = weekend?.data?.split("\n").at(-1) ?? "";
+  assert.equal(row.length, 72);
+  assert.equal(row.slice(-14), "wwww..........");
+});
+
+test("places the day chart directly and only changes its label and marker on scroll", () => {
+  const first = dailyGraphElements(points, new Date(2026, 9, 30, 12), 34);
+  const second = dailyGraphElements(points, new Date(2026, 9, 30, 12), 35);
+  const changed = second.filter((element, index) => JSON.stringify(element) !== JSON.stringify(first[index]));
+  assert.deepEqual(changed.map((element) => element.id), ["sales-selected-day", "sales-day-marker"]);
+  assert.equal(second.find((element) => element.id === "sales-weekends")?.y, 15);
+  assert.equal(second.find((element) => element.id === "sales-day-marker")?.x, 70);
+});
+
+test("shows the large updated total over either screen", () => {
+  for (const screen of ["home", "days"] as const) {
+    const tree = renderSalesScreen({
+      screen, now: new Date(2026, 9, 30, 12), count: 145, points,
+      selectedDay: 35, stale: false, notificationCount: 146,
+    }) as ScreenNode;
+    const elements = flatten(tree);
+    assert.equal(elements.find((item) => item.id === "sales-notification")?.text, "146");
+    assert.equal(elements.some((item) => item.id === "sales-chart"), false);
+  }
+});
+
+test("reports background chart loading without hiding the current overview", () => {
+  const args = { now: new Date(2026, 9, 30, 12), count: 145, points, selectedDay: 35, stale: false };
+  const loading = flatten(renderSalesScreen({ ...args, screen: "days", historyState: "loading" }) as ScreenNode);
+  const overview = flatten(renderSalesScreen({ ...args, screen: "home", historyState: "loading" }) as ScreenNode);
+  const failed = flatten(renderSalesScreen({ ...args, screen: "days", historyState: "error" }) as ScreenNode);
+  assert.equal(loading.find((item) => item.id === "sales-history-status")?.text, "LOADING");
+  assert.equal(failed.find((item) => item.id === "sales-history-status")?.text, "NO DATA");
+  assert.equal(overview.find((item) => item.id === "sales-count")?.text, "145");
 });

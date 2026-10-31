@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 WIDTH, HEIGHT = 16, 16
+BAR_COUNT = 8
 FPS = 3
 FRAME_COUNT = 32
 
@@ -40,7 +41,7 @@ def color_for_height(height: int) -> tuple[int, int, int]:
 def build_frames() -> list[list[int]]:
     """Creates a cyclic random-walk sequence so adjacent animation frames feel organic."""
     rng = random.Random(21)
-    bars = [rng.randint(2, HEIGHT - 2) for _ in range(4)]
+    bars = [rng.randint(2, HEIGHT - 2) for _ in range(BAR_COUNT)]
     frames = [bars.copy()]
     for _ in range(FRAME_COUNT - 2):
         bars = [max(1, min(HEIGHT, value + rng.randint(-4, 4))) for value in bars]
@@ -61,8 +62,8 @@ def main() -> None:
             image = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
             draw = ImageDraw.Draw(image)
             for column, height in enumerate(bars):
-                x0 = column * (WIDTH // 4)
-                draw.rectangle((x0, HEIGHT - height, x0 + WIDTH // 4 - 1, HEIGHT - 1), fill=(*color_for_height(height), 255))
+                x0 = column * (WIDTH // BAR_COUNT)
+                draw.rectangle((x0, HEIGHT - height, x0 + WIDTH // BAR_COUNT - 1, HEIGHT - 1), fill=(*color_for_height(height), 255))
             image.save(frames_dir / f"{index}.png")
         (frames_dir / "meta.json").write_text(json.dumps({"fps": FPS, "color_mode": "argb8888", "sections": []}))
         converter.convert_dir(frames_dir, output)

@@ -2,11 +2,13 @@ import { generateXpm2 } from "@busy-app/busy-lib";
 
 const EMPTY = ".";
 const COLORS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const SALES_COLOR_LEVELS = 30;
 export const SALES_ERROR_COLOR = "#FF3838FF";
 
 /** Maps low sales to green and high sales to red for the history screens. */
 function colorForValue(value: number, max: number): string {
-  const strength = max === 0 ? 0 : Math.min(1, value / max);
+  const ratio = max === 0 ? 0 : Math.min(1, value / max);
+  const strength = Math.round(ratio * (SALES_COLOR_LEVELS - 1)) / (SALES_COLOR_LEVELS - 1);
   const red = Math.round(51 + strength * 204);
   const green = Math.round(204 - strength * 168);
   return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}44`;
@@ -64,11 +66,17 @@ export function dailySalesIconFromHeights(heights: number[], width: number, heig
 export function historicalSalesIcon(values: number[], width: number, height: number, selectedIndex = -1): string {
   const grid = Array.from({ length: height }, () => Array<string>(width).fill(EMPTY));
   const palette: Record<string, string> = { [EMPTY]: "None" };
+  const symbols = new Map<string, string>();
   const max = Math.max(1, ...values);
 
   values.forEach((value, index) => {
-    const symbol = COLORS[index % COLORS.length]!;
-    palette[symbol] = index === selectedIndex ? "#FFFFFFFF" : colorForValue(value, max);
+    const color = index === selectedIndex ? "#FFFFFFFF" : colorForValue(value, max);
+    let symbol = symbols.get(color);
+    if (!symbol) {
+      symbol = COLORS[symbols.size]!;
+      symbols.set(color, symbol);
+      palette[symbol] = color;
+    }
     const barHeight = index === selectedIndex
       ? Math.max(1, Math.round((value / max) * height))
       : Math.round((value / max) * height);

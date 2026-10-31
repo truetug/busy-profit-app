@@ -2,7 +2,18 @@ export type Point = { at: string; count: number; atMs?: number };
 export type SalesView = "home" | "days";
 export type DaySales = { atMs: number; count: number };
 
-export const SALES_HISTORY_DAYS = 28;
+export const SALES_HISTORY_DAYS = 36;
+export const HOME_HISTORY_DAYS = 8;
+
+/** Combines the older and recent snapshots, keeping the current feed at the overlap. */
+export function mergeHistory(older: Point[], current: Point[]): Point[] {
+  const byTime = new Map<number, Point>();
+  for (const point of [...older, ...current]) {
+    const atMs = point.atMs ?? timestamp(point.at);
+    if (Number.isFinite(atMs)) byTime.set(atMs, { ...point, atMs });
+  }
+  return [...byTime.entries()].sort((a, b) => a[0] - b[0]).map((entry) => entry[1]);
+}
 
 /** Parses Shopify's ISO timestamps without relying on the Bar's incomplete Date.parse implementation. */
 export function timestamp(value: string): number {
