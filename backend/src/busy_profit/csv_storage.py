@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from busy_profit.models import SalesObservation
 
 FIELDNAMES = ("observed_at", "bars_sold", "source_updated_at")
+PUBLIC_FIELDNAMES = ("observed_at", "bars_sold")
 ROLLING_DAYS = 38
 
 
@@ -119,6 +120,24 @@ class DisplayHistoryCsvPublisher:
             raise ValueError("display history and current CSV paths must differ")
         self._timezone = ZoneInfo(timezone_name)
 
+    def _write_compact(self, path: Path, points: list[SalesObservation]) -> None:
+        """Atomically publish observations without the private source timestamp.
+
+        The full timestamped observations remain in the history repository.
+        """
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.tmp")
+        with temporary.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=PUBLIC_FIELDNAMES)
+            writer.writeheader()
+            writer.writerows(
+                {"observed_at": point.observed_at.isoformat(), "bars_sold": point.bars_sold}
+                for point in points
+            )
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+
     def publish(self, points: list[SalesObservation]) -> None:
         """Publish the legacy projection and eight recent days separately.
 
@@ -137,8 +156,8 @@ class DisplayHistoryCsvPublisher:
 
         if not by_hour:
             CsvHistoryRepository(self._path).rewrite(self._path, [])
-            CsvHistoryRepository(self._current_path).rewrite(self._current_path, [])
-            CsvHistoryRepository(self._older_path).rewrite(self._older_path, [])
+            self._write_compact(self._current_path, [])
+            self._write_compact(self._older_path, [])
             return
 
         latest_hour = max(by_hour)
@@ -172,7 +191,7 @@ class DisplayHistoryCsvPublisher:
         ]
         if earlier:
             recent.append(max(earlier, key=lambda point: point.observed_at))
-        CsvHistoryRepository(self._current_path).rewrite(
+        self._write_compact(
             self._current_path,
             sorted(recent, key=lambda point: point.observed_at),
         )
@@ -189,7 +208,7 @@ class DisplayHistoryCsvPublisher:
         ]
         if anchors:
             older.append(max(anchors, key=lambda point: point.observed_at))
-        CsvHistoryRepository(self._older_path).rewrite(
+        self._write_compact(
             self._older_path,
             sorted(older, key=lambda point: point.observed_at),
         )
