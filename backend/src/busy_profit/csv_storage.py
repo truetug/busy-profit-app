@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from busy_profit.models import SalesObservation
 
 FIELDNAMES = ("observed_at", "bars_sold", "source_updated_at")
+ROLLING_DAYS = 38
 
 
 def csv_row(point: SalesObservation) -> dict[str, str | int]:
@@ -21,11 +22,12 @@ def csv_row(point: SalesObservation) -> dict[str, str | int]:
 
 
 class CsvHistoryRepository:
-    """Store rolling and append-only monthly history as durable CSV files."""
+    """Keep complete monthly history and a bounded rolling cache as CSV files."""
 
     def __init__(self, path: Path) -> None:
         """Set the root rolling-history path used to derive monthly archive names."""
         self._path = path
+        self._bootstrapped = False
 
     def read(self, path: Path | None = None) -> list[SalesObservation]:
         """Load and validate observations, treating only a missing file as empty."""
@@ -64,45 +66,79 @@ class CsvHistoryRepository:
         os.replace(temporary, path)
 
     def save(self, point: SalesObservation) -> list[SalesObservation]:
-        """Prune rolling history, append monthly history, and return retained points."""
-        cutoff = point.observed_at - timedelta(days=28)
-        existing = self.read()
-        retained = [item for item in existing if item.observed_at >= cutoff]
-        crossed_day = (
-            bool(existing)
-            and existing[-1].observed_at.date() != point.observed_at.date()
-        )
-        if len(retained) != len(existing) or crossed_day:
-            self.rewrite(self._path, retained)
+        """Persist each observation in its monthly archive before updating the cache.
 
-        self.append(self._path, point)
+        Restore the rolling window from archives on startup or after a cache failure.
+        """
+        cutoff = point.observed_at - timedelta(days=ROLLING_DAYS)
         monthly_path = self._path.with_name(
             f"{self._path.stem}-{point.observed_at:%Y-%m}{self._path.suffix}",
         )
         self.append(monthly_path, point)
-        return [item for item in self.read() if item.observed_at >= cutoff]
+        try:
+            existing = self.read()
+            if not self._bootstrapped:
+                restored = {item.observed_at: item for item in existing}
+                month = cutoff.replace(day=1)
+                while month <= point.observed_at:
+                    archive = self._path.with_name(
+                        f"{self._path.stem}-{month:%Y-%m}{self._path.suffix}",
+                    )
+                    for item in self.read(archive):
+                        if cutoff <= item.observed_at < point.observed_at:
+                            restored.setdefault(item.observed_at, item)
+                    month = (month.replace(day=28) + timedelta(days=4)).replace(day=1)
+                existing = sorted(restored.values(), key=lambda item: item.observed_at)
+            retained = [item for item in existing if item.observed_at >= cutoff]
+            crossed_day = (
+                bool(existing)
+                and existing[-1].observed_at.date() != point.observed_at.date()
+            )
+            if not self._bootstrapped or len(retained) != len(existing) or crossed_day:
+                self.rewrite(self._path, retained)
+            self.append(self._path, point)
+            self._bootstrapped = True
+            return [item for item in self.read() if item.observed_at >= cutoff]
+        except Exception:
+            self._bootstrapped = False
+            raise
 
 
 class DisplayHistoryCsvPublisher:
-    """Publish daily history plus the latest 49 hourly observations atomically."""
+    """Publish legacy history and a compact eight-day display projection."""
 
     def __init__(self, path: Path, timezone_name: str) -> None:
-        """Configure the public projection destination and display timezone."""
+        """Configure separate history and current projection destinations.
+
+        Keep day boundaries aligned to the display timezone.
+        """
         self._path = path
+        self._current_path = path.with_name("current.csv")
+        self._older_path = path.with_name("older.csv")
+        if len({self._path, self._current_path, self._older_path}) != 3:
+            raise ValueError("display history and current CSV paths must differ")
         self._timezone = ZoneInfo(timezone_name)
 
     def publish(self, points: list[SalesObservation]) -> None:
-        """Keep graph-resolution daily points and high-resolution recent hours."""
+        """Publish the legacy projection and eight recent days separately.
+
+        Replace each CSV atomically while preserving recent hourly detail.
+        """
         by_hour: dict[datetime, SalesObservation] = {}
         by_day: dict[date, SalesObservation] = {}
         for point in points:
             local_time = point.observed_at.astimezone(self._timezone)
             hour = local_time.replace(minute=0, second=0, microsecond=0)
-            by_hour[hour] = point
-            by_day[local_time.date()] = point
+            if hour not in by_hour or point.observed_at > by_hour[hour].observed_at:
+                by_hour[hour] = point
+            day = local_time.date()
+            if day not in by_day or point.observed_at > by_day[day].observed_at:
+                by_day[day] = point
 
         if not by_hour:
             CsvHistoryRepository(self._path).rewrite(self._path, [])
+            CsvHistoryRepository(self._current_path).rewrite(self._current_path, [])
+            CsvHistoryRepository(self._older_path).rewrite(self._older_path, [])
             return
 
         latest_hour = max(by_hour)
@@ -121,4 +157,39 @@ class DisplayHistoryCsvPublisher:
         CsvHistoryRepository(self._path).rewrite(
             self._path,
             sorted(projection.values(), key=lambda item: item.observed_at),
+        )
+        latest = max(points, key=lambda point: point.observed_at)
+        start_day = latest.observed_at.astimezone(self._timezone).date() - timedelta(days=7)
+        earlier = [
+            point
+            for day, point in by_day.items()
+            if day < start_day
+        ]
+        recent = [
+            point
+            for day, point in by_day.items()
+            if day >= start_day
+        ]
+        if earlier:
+            recent.append(max(earlier, key=lambda point: point.observed_at))
+        CsvHistoryRepository(self._current_path).rewrite(
+            self._current_path,
+            sorted(recent, key=lambda point: point.observed_at),
+        )
+        oldest_day = start_day - timedelta(days=28)
+        older = [
+            point
+            for day, point in by_day.items()
+            if oldest_day <= day < start_day
+        ]
+        anchors = [
+            point
+            for day, point in by_day.items()
+            if day < oldest_day
+        ]
+        if anchors:
+            older.append(max(anchors, key=lambda point: point.observed_at))
+        CsvHistoryRepository(self._older_path).rewrite(
+            self._older_path,
+            sorted(older, key=lambda point: point.observed_at),
         )
