@@ -30,7 +30,7 @@ test("reports elapsed selling days from the July 14 launch date", () => {
 });
 
 test("formats the sales headline with selling days on the same line", () => {
-  assert.deepEqual(salesHeadline(5003, new Date(2026, 9, 30, 12)), { count: "5003", days: "/ 108d" });
+  assert.deepEqual(salesHeadline(5003, new Date(2026, 9, 30, 12)), { count: "5003", days: "108" });
 });
 
 test("formats the lower line with only local date and time", () => {

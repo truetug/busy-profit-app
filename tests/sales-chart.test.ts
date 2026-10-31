@@ -34,6 +34,11 @@ test("draws adjoining icon bars and uses green-to-red colors", () => {
   assert.ok(bitmap.palette.every((entry) => !/#(?:[\da-f]{8}|[\da-f]{12}|[\da-f]{16})$/i.test(entry)));
 });
 
+test("renders eight adjacent two-pixel bars in the home icon", () => {
+  const bitmap = readBitmap(dailySalesIcon(Array(8).fill(5), 16, 16));
+  assert.equal(bitmap.rows.at(-1), "aabbccddeeffgghh");
+});
+
 test("scales equal non-zero sales without producing invalid heights", () => {
   assert.deepEqual(dailySalesHeights([7, 7, 7, 7], 16), [16, 16, 16, 16]);
 });
@@ -54,6 +59,22 @@ test("fills historical chart columns edge-to-edge and uses letter-only XPM symbo
 
   assert.equal(bitmap.rows.at(-1), "aaaabbbbccccdddd");
   assert.ok(bitmap.palette.every((entry) => !/[0-9] c /.test(entry)));
+});
+
+test("renders exactly two pixels per day across the 36-day chart", () => {
+  const bitmap = readBitmap(historicalSalesIcon(Array.from({ length: 36 }, (_, index) => index % 2 + 1), 72, 9, 35));
+  const row = bitmap.rows.at(-1)!;
+  assert.equal(row.length, 72);
+  for (let index = 0; index < 36; index++) {
+    assert.equal(row[index * 2], row[index * 2 + 1]);
+    if (index > 0) assert.notEqual(row[index * 2], row[index * 2 - 1]);
+  }
+});
+
+test("fits varied 36-day sales values into the device's 32-color XPM limit", () => {
+  const bitmap = readBitmap(historicalSalesIcon(Array.from({ length: 36 }, (_, index) => index + 1), 72, 9, 35));
+  assert.ok(bitmap.palette.length <= 32);
+  assert.ok(bitmap.palette.some((entry) => entry.includes("#FFFFFF")));
 });
 
 test("renders the entire selected historical bar white", () => {

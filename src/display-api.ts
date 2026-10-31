@@ -55,3 +55,8 @@ export function staleElementIds(previousIds: string[], nextIds: string[]): strin
 export function mergeDrawnElementIds(previousIds: string[], nextIds: string[]): string[] {
   return [...new Set([...previousIds, ...nextIds])];
 }
+
+/** Returns elements whose rendered contents differ from the last successful frame. */
+export function changedElements<T extends { id?: string }>(elements: T[], previous: Map<string, string>): T[] {
+  return elements.filter((element) => !element.id || previous.get(element.id) !== JSON.stringify(element));
+}
