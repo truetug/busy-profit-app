@@ -9,7 +9,9 @@ const WHITE = "#FFFFFFFF";
 const MUTED = "#A0A0A0FF";
 const DIM = "#AAAAAAFF";
 const GAP = 3;
-const SUB_DY = -2;
+// Unlike Weather's direct text node, the headline is wrapped in a row here;
+// don't apply Weather's negative subtitle offset to this nested layout.
+const SUB_DY = 0;
 const TEXT_W = SCREEN.width - 16 - GAP;
 type Screen = SalesView;
 let cachedChartKey = "";
