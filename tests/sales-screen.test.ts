@@ -7,6 +7,7 @@ type ScreenNode = {
   id?: string;
   text?: string;
   data?: string;
+  fill_colors?: string[];
   dx?: number;
   dy?: number;
   z_index?: number;
@@ -54,7 +55,7 @@ test("renders the full-width 36-day chart with selected date and count", () => {
   assert.equal(elements.find((item) => item.id === "sales-chart")?.type, "xpmbitmap");
   assert.equal(elements.find((item) => item.id === "sales-day-marker")?.type, "rectangle");
   assert.equal(elements.find((item) => item.id === "sales-day-marker")?.x, 70);
-  assert.equal(elements.find((item) => item.id === "sales-day-marker")?.z_index, 5);
+  assert.equal(elements.find((item) => item.id === "sales-day-marker")?.z_index, 7);
   assert.equal(elements.find((item) => item.id === "sales-weekends")?.y, 15);
 });
 
@@ -65,6 +66,17 @@ test("marks Saturdays and Sundays in the bottom row", () => {
   const row = weekend?.data?.split("\n").at(-1) ?? "";
   assert.equal(row.length, 72);
   assert.equal(row.slice(-14), "wwww..........");
+});
+
+test("draws the selected weekend marker above the gray weekend indicator", () => {
+  const elements = dailyGraphElements(points, new Date(2026, 10, 1, 12), 35);
+  const marker = elements.find((item) => item.id === "sales-day-marker");
+  const weekends = elements.find((item) => item.id === "sales-weekends");
+  const bottomRow = weekends?.data?.split("\n").at(-1) ?? "";
+
+  assert.equal(bottomRow.slice(70, 72), "ww");
+  assert.equal(marker?.fill_colors?.[0], "#FFFFFFFF");
+  assert.ok((marker?.z_index ?? 0) > (weekends?.z_index ?? 0));
 });
 
 test("places the day chart directly and only changes its label and marker on scroll", () => {

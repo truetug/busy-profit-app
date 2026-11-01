@@ -57,7 +57,7 @@ export function dailyGraphElements(points: Point[], now: Date, selectedDay: numb
     { type: "text", id: "sales-selected-day", x: 0, y: 0, text: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}  ${selected.count}`, font: "small", color: WHITE },
     { type: "text", id: "sales-history-label", x: SCREEN.width - 1, y: 0, align: "top_right", text: "36D", font: "small", color: MUTED },
     { type: "xpmbitmap", id: "sales-chart", x: 0, y: 7, data: dailyChart(cachedDays.map((day) => day.count)), opacity: 100, z_index: 0 },
-    { type: "rectangle", id: "sales-day-marker", x: index * 2, y: 16 - height, width: 2, height, fill: "solid", fill_colors: [WHITE], border_width: 0, z_index: 5 },
+    { type: "rectangle", id: "sales-day-marker", x: index * 2, y: 16 - height, width: 2, height, fill: "solid", fill_colors: [WHITE], border_width: 0, z_index: 7 },
     { type: "xpmbitmap", id: "sales-weekends", x: 0, y: 15, data: cachedWeekends, opacity: 100, z_index: 6 },
   ];
 }
