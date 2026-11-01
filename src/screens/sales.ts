@@ -9,8 +9,6 @@ const WHITE = "#FFFFFFFF";
 const MUTED = "#A0A0A0FF";
 const DIM = "#AAAAAAFF";
 const GAP = 3;
-// Match Weather's baseline so the date remains visually separated from the headline.
-const SUB_DY = -2;
 const TEXT_W = SCREEN.width - 16 - GAP;
 type Screen = SalesView;
 let cachedChartKey = "";
@@ -112,7 +110,7 @@ export function renderSalesScreen(args: {
         };
     return row({ align: "center", gap: GAP, width: SCREEN.width, height: SCREEN.height }, [
         mark,
-        column({ justify: "between", height: SCREEN.height }, [
+        column({ justify: "between", gap: 2, height: SCREEN.height }, [
           headline
               ? row({ align: "center", justify: "between", width: TEXT_W - 1 }, [
                   {
@@ -135,7 +133,7 @@ export function renderSalesScreen(args: {
           {
             type: "text", id: "sales-info",
             text: count === undefined && error ? `${error} · retrying` : date,
-            font: "small", color: error || stale ? SALES_ERROR_COLOR : DIM, width: TEXT_W, dy: SUB_DY,
+            font: "small", color: error || stale ? SALES_ERROR_COLOR : DIM, width: TEXT_W, dy: 0,
             scroll_rate: 600, scroll_start_delay: 400, scroll_repeat_delay: 800,
           },
         ]),

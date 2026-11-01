@@ -13,6 +13,7 @@ type ScreenNode = {
   z_index?: number;
   font?: string;
   justify?: string;
+  gap?: number;
   width?: number;
   height?: number;
   children?: ScreenNode[];
@@ -44,7 +45,8 @@ test("renders lifetime sales, selling days, and an eight-column icon", () => {
   assert.equal(elements.find((item) => item.id === "sales-mark")?.type, "xpmbitmap");
   assert.match(elements.find((item) => item.id === "sales-mark")?.data ?? "", /16 16 9 1/);
   assert.ok(elements.find((item) => item.id === "sales-info")?.text);
-  assert.equal(elements.find((item) => item.id === "sales-info")?.dy, -2);
+  assert.equal(elements.find((item) => item.id === "sales-info")?.dy, 0);
+  assert.equal(elements.find((item) => item.children?.some((child) => child.id === "sales-info"))?.gap, 2);
 });
 
 test("renders the full-width 36-day chart with selected date and count", () => {
