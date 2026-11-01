@@ -9,7 +9,7 @@ import { actionForInput, encoderMovement } from "./input.ts";
 import { startMinuteClock } from "./minute-clock.ts";
 import { dailySalesHeights, interpolateBarHeights } from "./screens/sales-chart.ts";
 import { SALES_LOADING_ICON_ID } from "./screens/sales-ids.ts";
-import { changedElements, clampNegativeY, clearDisplay, fetchWithTimeout, mergeDrawnElementIds, staleElementIds } from "./display-api.ts";
+import { changedElements, clampNegativeY, clearDisplay, fetchWithTimeout, invalidateDrawnElements, mergeDrawnElementIds, staleElementIds } from "./display-api.ts";
 import { moveDayCursor } from "./model/navigation.ts";
 import { HOME_HISTORY_DAYS, SALES_HISTORY_DAYS } from "./model/sales.ts";
 import { createTaskScope } from "./task-scope.ts";
@@ -128,6 +128,8 @@ async function draw(): Promise<void> {
         const message = error instanceof Error ? error.message : String(error);
         if (message !== lastDrawError) console.error(`${APP}: display draw failed: ${message}`);
         lastDrawError = message;
+        invalidateDrawnElements(drawnElements);
+        activeElementIds = [];
       }
       if (exiting) return;
       if (drawSucceeded && pendingDraw) {
