@@ -23,6 +23,7 @@ def build_site(source: Path, output: Path) -> None:
     (output / "index.html").write_text(template.replace(marker, body), encoding="utf-8")
     shutil.copy2(source / "website/style.css", output / "style.css")
     shutil.copytree(source / "screenshots", output / "screenshots", dirs_exist_ok=True)
+    shutil.copy2(source / "src/appmeta/icon_front_8x8.png", output / "screenshots/app-icon.png")
 
 
 if __name__ == "__main__":

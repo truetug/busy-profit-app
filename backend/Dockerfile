@@ -4,6 +4,7 @@ WORKDIR /build
 RUN pip install --no-cache-dir --disable-pip-version-check 'markdown-it-py>=3,<5'
 COPY README.md /build/README.md
 COPY screenshots /build/screenshots
+COPY src/appmeta/icon_front_8x8.png /build/src/appmeta/icon_front_8x8.png
 COPY website /build/website
 RUN python /build/website/build.py
 

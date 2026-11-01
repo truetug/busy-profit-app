@@ -25,6 +25,8 @@ def test_build_renders_real_readme_and_local_screenshots(tmp_path: Path) -> None
         assert f'src="screenshots/{screenshot.name}"' in html
         assert (tmp_path / "screenshots" / screenshot.name).read_bytes() == screenshot.read_bytes()
     assert (tmp_path / "style.css").is_file()
+    assert 'src="/screenshots/app-icon.png"' in html
+    assert (tmp_path / "screenshots/app-icon.png").read_bytes() == (ROOT / "src/appmeta/icon_front_8x8.png").read_bytes()
 
 
 def test_build_escapes_raw_html_in_markdown(tmp_path: Path) -> None:
@@ -35,6 +37,8 @@ def test_build_escapes_raw_html_in_markdown(tmp_path: Path) -> None:
     source = tmp_path / "source"
     (source / "website").mkdir(parents=True)
     (source / "screenshots").mkdir()
+    (source / "src/appmeta").mkdir(parents=True)
+    (source / "src/appmeta/icon_front_8x8.png").write_bytes(b"icon")
     (source / "README.md").write_text("# Hello\n\n<script>alert(1)</script>\n", encoding="utf-8")
     (source / "website/template.html").write_text("<main><!-- README_CONTENT --></main>", encoding="utf-8")
     (source / "website/style.css").write_text("body {}", encoding="utf-8")
