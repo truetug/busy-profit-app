@@ -46,7 +46,9 @@ test("renders lifetime sales, selling days, and an eight-column icon", () => {
   assert.match(elements.find((item) => item.id === "sales-mark")?.data ?? "", /16 16 9 1/);
   assert.ok(elements.find((item) => item.id === "sales-info")?.text);
   assert.equal(elements.find((item) => item.id === "sales-info")?.dy, 0);
-  assert.equal(elements.find((item) => item.children?.some((child) => child.id === "sales-info"))?.gap, 2);
+  const headlineColumn = elements.find((item) => item.children?.some((child) => child.id === "sales-info"));
+  assert.equal(headlineColumn?.gap, 2);
+  assert.equal(headlineColumn?.dy, -1);
 });
 
 test("renders the full-width 36-day chart with selected date and count", () => {

@@ -110,7 +110,7 @@ export function renderSalesScreen(args: {
         };
     return row({ align: "center", gap: GAP, width: SCREEN.width, height: SCREEN.height }, [
         mark,
-        column({ justify: "between", gap: 2, height: SCREEN.height }, [
+        column({ justify: "between", gap: 2, height: SCREEN.height, dy: -1 }, [
           headline
               ? row({ align: "center", justify: "between", width: TEXT_W - 1 }, [
                   {
