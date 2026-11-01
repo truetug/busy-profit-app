@@ -24,11 +24,7 @@ a:focus-visible { outline: 2px solid #e9b35c; outline-offset: 4px; }
 .topbar { height: 86px; border-bottom: 1px solid #30332c; }
 .wordmark { display: inline-flex; align-items: center; gap: 5px; color: #f5f4e9; text-decoration: none; font-size: 13px; font-weight: 850; letter-spacing: 0.1em; }
 .wordmark strong { color: #e9b35c; }
-.mark { width: 27px; height: 22px; display: inline-flex; align-items: end; gap: 2px; margin-right: 8px; }
-.mark i { width: 5px; background: #8fbd6e; height: 8px; }
-.mark i:nth-child(2) { height: 14px; background: #c5bb63; }
-.mark i:nth-child(3) { height: 20px; background: #e5a258; }
-.mark i:nth-child(4) { height: 12px; background: #c97e51; }
+.mark { width: 24px; height: 24px; margin-right: 8px; image-rendering: pixelated; }
 .source-link { color: #b7baae; font-size: 13px; text-decoration: none; }
 .source-link span { color: #e9b35c; padding-left: 4px; }
 

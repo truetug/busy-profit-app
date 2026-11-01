@@ -8,6 +8,7 @@ on:
       - "website/**"
       - "README.md"
       - "screenshots/**"
+      - "src/appmeta/icon_front_8x8.png"
       - ".github/workflows/collector-image.yml"
   workflow_dispatch:
 
