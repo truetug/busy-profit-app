@@ -21,6 +21,8 @@ def test_build_renders_real_readme_and_local_screenshots(tmp_path: Path) -> None
 
     assert "<h1>BUSY Profit</h1>" in html
     assert 'href="/style.css"' in html
+    assert 'class="copyright">©&nbsp;<a href="https://truetug.info"' in html
+    assert '(c) tug' not in html
     for screenshot in (ROOT / "screenshots").glob("*.png"):
         assert f'src="screenshots/{screenshot.name}"' in html
         assert (tmp_path / "screenshots" / screenshot.name).read_bytes() == screenshot.read_bytes()
