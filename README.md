@@ -10,7 +10,7 @@ BUSY Profit shows lifetime sales, days since launch and the latest eight days on
 
 ![New-sales notification on BUSY Bar](screenshots/new-sales.png)
 
-Screenshots are captured from a real device. Native 72×16 images for the app catalog are in [screenshots/catalog](screenshots/catalog); documentation images use nearest-neighbor enlargement.
+Screenshots are captured from a real device. Native 72×16 catalog images: [overview](screenshots/catalog/lifetime-summary.png), [daily chart](screenshots/catalog/daily-chart.png), [new sales](screenshots/catalog/new-sales.png). Documentation images use nearest-neighbor enlargement.
 
 ## Build
 
