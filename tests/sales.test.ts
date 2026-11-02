@@ -35,6 +35,7 @@ test("formats the sales headline with selling days on the same line", () => {
 
 test("formats the lower line with only local date and time", () => {
   assert.equal(formatDateTime(new Date(2026, 9, 30, 11, 5)), "30 Oct, 11:05");
+  assert.equal(formatDateTime(new Date(2026, 10, 2, 1, 50)), "2 Nov, 01:50");
 });
 
 test("limits the daily chart series to the requested recent-day window", () => {

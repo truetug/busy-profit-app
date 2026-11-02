@@ -9,7 +9,6 @@ const WHITE = "#FFFFFFFF";
 const MUTED = "#A0A0A0FF";
 const DIM = "#AAAAAAFF";
 const GAP = 3;
-const SUB_DY = -1;
 const TEXT_W = SCREEN.width - 16 - GAP;
 type Screen = SalesView;
 let cachedChartKey = "";
@@ -56,7 +55,7 @@ export function dailyGraphElements(points: Point[], now: Date, selectedDay: numb
     { type: "text", id: "sales-selected-day", x: 0, y: 0, text: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}  ${selected.count}`, font: "small", color: WHITE },
     { type: "text", id: "sales-history-label", x: SCREEN.width - 1, y: 0, align: "top_right", text: "36D", font: "small", color: MUTED },
     { type: "xpmbitmap", id: "sales-chart", x: 0, y: 7, data: dailyChart(cachedDays.map((day) => day.count)), opacity: 100, z_index: 0 },
-    { type: "rectangle", id: "sales-day-marker", x: index * 2, y: 16 - height, width: 2, height, fill: "solid", fill_colors: [WHITE], border_width: 0, z_index: 5 },
+    { type: "rectangle", id: "sales-day-marker", x: index * 2, y: 16 - height, width: 2, height, fill: "solid", fill_colors: [WHITE], border_width: 0, z_index: 7 },
     { type: "xpmbitmap", id: "sales-weekends", x: 0, y: 15, data: cachedWeekends, opacity: 100, z_index: 6 },
   ];
 }
@@ -77,7 +76,10 @@ export function renderSalesScreen(args: {
   const { screen, now, count, points, stale, iconHeights, notificationCount, error, historyState } = args;
   if (notificationCount !== undefined) {
     return row({ justify: "center", align: "center", width: SCREEN.width, height: SCREEN.height }, [
-      { type: "text", id: "sales-notification", text: String(notificationCount), font: "large", color: WHITE },
+      { type: "animation", id: "sales-notification-background",
+        path: "animations/sales_notification.anim", loop: true, await_previous_end: false,
+        width: 72, height: 16, opacity: 100, z_index: 0 },
+      { type: "text", id: "sales-notification", text: String(notificationCount), font: "bold", color: WHITE },
     ]);
   }
   if (screen === "days") {
@@ -111,12 +113,12 @@ export function renderSalesScreen(args: {
         };
     return row({ align: "center", gap: GAP, width: SCREEN.width, height: SCREEN.height }, [
         mark,
-        column({ justify: "between", height: SCREEN.height }, [
+        column({ justify: "between", gap: 2, height: SCREEN.height, dy: -1 }, [
           headline
               ? row({ align: "center", justify: "between", width: TEXT_W - 1 }, [
                   {
                     type: "text", id: "sales-count", text: headline.count,
-                    font: "bold", color: WHITE, dy: 1,
+                    font: "bold", color: WHITE,
                   },
                   {
                     type: "text", id: "sales-days", text: headline.days,
@@ -129,12 +131,11 @@ export function renderSalesScreen(args: {
                 text: error ? "NO DATA" : "LOADING",
                 font: "bold",
                 color: WHITE,
-                dy: 1,
               },
           {
             type: "text", id: "sales-info",
             text: count === undefined && error ? `${error} · retrying` : date,
-            font: "small", color: error || stale ? SALES_ERROR_COLOR : DIM, width: TEXT_W, dy: SUB_DY,
+            font: "small", color: error || stale ? SALES_ERROR_COLOR : DIM, width: TEXT_W, dy: 0,
             scroll_rate: 600, scroll_start_delay: 400, scroll_repeat_delay: 800,
           },
         ]),

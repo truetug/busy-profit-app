@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { changedElements, clampNegativeY, clearDisplay, fetchWithTimeout, mergeDrawnElementIds, staleElementIds } from "../src/display-api.ts";
+import { changedElements, clampNegativeY, clearDisplay, fetchWithTimeout, invalidateDrawnElements, mergeDrawnElementIds, staleElementIds } from "../src/display-api.ts";
 
 test("sends only changed elements when selecting a different day", () => {
   const chart = { id: "chart", data: "unchanged" };
@@ -8,6 +8,15 @@ test("sends only changed elements when selecting a different day", () => {
   const marker = { id: "marker", x: 4 };
   const previous = new Map([[chart.id, JSON.stringify(chart)], [oldMarker.id, JSON.stringify(oldMarker)]]);
   assert.deepEqual(changedElements([chart, marker], previous), [marker]);
+});
+
+test("resends the complete frame after a higher-priority draw takes over the canvas", () => {
+  const elements = [{ id: "sales-count", text: "5018" }, { id: "sales-info", text: "1 Nov, 20:25" }];
+  const previouslyDrawn = new Map(elements.map((element) => [element.id, JSON.stringify(element)]));
+
+  invalidateDrawnElements(previouslyDrawn);
+
+  assert.deepEqual(changedElements(elements, previouslyDrawn), elements);
 });
 
 test("clamps a negative top coordinate without changing valid elements", () => {

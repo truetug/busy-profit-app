@@ -1,12 +1,16 @@
 # BUSY Profit
 
-BUSY Profit shows lifetime sales, days since launch and the latest eight days on your BUSY Bar. Press Start for the 36-day chart and turn the encoder to select a day; gray pixels mark weekends. New sales appear for ten seconds with a cash sound, or applause when a hundred is crossed. Data refreshes every minute from [profit.busy.truetug.info](https://profit.busy.truetug.info/).
+BUSY Profit shows lifetime sales, days since launch and the latest eight days on your BUSY Bar. Press Start for the 36-day chart and turn the encoder to select a day; gray pixels mark weekends and the selected day is white. New sales appear for ten seconds over an animated chart with a cash sound, or one applause when a hundred is crossed. The subtle right-edge indicator counts down to the next one-minute refresh from [profit.busy.truetug.info](https://profit.busy.truetug.info/); press Back to exit.
 
 ## Screenshots
 
 ![Sales overview on BUSY Bar](screenshots/lifetime-summary.png)
 
 ![Daily sales chart on BUSY Bar](screenshots/daily-chart.png)
+
+![New-sales notification on BUSY Bar](screenshots/new-sales.png)
+
+Screenshots are captured from a real device. Native 72×16 images for the app catalog are in [screenshots/catalog](screenshots/catalog); documentation images use nearest-neighbor enlargement.
 
 ## Build
 

@@ -9,7 +9,7 @@ import { actionForInput, encoderMovement } from "./input.ts";
 import { startMinuteClock } from "./minute-clock.ts";
 import { dailySalesHeights, interpolateBarHeights } from "./screens/sales-chart.ts";
 import { SALES_LOADING_ICON_ID } from "./screens/sales-ids.ts";
-import { changedElements, clampNegativeY, clearDisplay, fetchWithTimeout, mergeDrawnElementIds, staleElementIds } from "./display-api.ts";
+import { changedElements, clampNegativeY, clearDisplay, fetchWithTimeout, invalidateDrawnElements, mergeDrawnElementIds, staleElementIds } from "./display-api.ts";
 import { moveDayCursor } from "./model/navigation.ts";
 import { HOME_HISTORY_DAYS, SALES_HISTORY_DAYS } from "./model/sales.ts";
 import { createTaskScope } from "./task-scope.ts";
@@ -18,6 +18,7 @@ import { SALES_POLL_INTERVAL_MS, startSalesPolling } from "./sales-polling.ts";
 import { salesNotification } from "./model/sales-notification.ts";
 import { countdownIndicator } from "./countdown-indicator.ts";
 import { createEncoderDrawScheduler } from "./encoder-draw.ts";
+import { positionSalesDigits } from "./screens/sales-digits.ts";
 
 const APP = manifest.id;
 const CHART_TRANSITION_STEPS = 6;
@@ -103,7 +104,7 @@ async function draw(): Promise<void> {
         error: loadError,
         stale: points.length > 0 && Date.now() - timestamp(points[points.length - 1]!.at) > SALES_POLL_INTERVAL_MS * 2,
       }));
-      const elements = clampNegativeY([...screenElements, ...(screen === "home" && notificationCount === undefined && nextPollAt
+      const elements = clampNegativeY([...positionSalesDigits(screenElements), ...(screen === "home" && notificationCount === undefined && nextPollAt
         ? countdownIndicator(nextPollAt - Date.now()) : [])]);
       const nextElementIds = elements.flatMap((element) => element.id ? [element.id] : []);
       const staleIds = staleElementIds(activeElementIds, nextElementIds);
@@ -128,6 +129,8 @@ async function draw(): Promise<void> {
         const message = error instanceof Error ? error.message : String(error);
         if (message !== lastDrawError) console.error(`${APP}: display draw failed: ${message}`);
         lastDrawError = message;
+        invalidateDrawnElements(drawnElements);
+        activeElementIds = [];
       }
       if (exiting) return;
       if (drawSucceeded && pendingDraw) {

@@ -60,3 +60,8 @@ export function mergeDrawnElementIds(previousIds: string[], nextIds: string[]): 
 export function changedElements<T extends { id?: string }>(elements: T[], previous: Map<string, string>): T[] {
   return elements.filter((element) => !element.id || previous.get(element.id) !== JSON.stringify(element));
 }
+
+/** Forgets the rendered frame after another application or the firmware rejects a draw. */
+export function invalidateDrawnElements(previous: Map<string, string>): void {
+  previous.clear();
+}
