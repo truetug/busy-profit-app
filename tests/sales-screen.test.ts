@@ -38,7 +38,7 @@ test("shows SET PIN instead of sales or loading when authorization is required",
     assert.equal(elements.find((item) => item.id === "sales-count")?.text, "SET PIN");
     assert.equal(elements.find((item) => item.id === "sales-count")?.color, "#FF3838FF");
     assert.equal(elements.find((item) => item.id === "sales-info")?.text, "2 Nov, 12:30");
-    assert.equal(elements.some((item) => item.id === "sales-loading-icon"), false);
+    assert.equal(elements.find((item) => item.id === "sales-loading-icon")?.type, "animation");
   }
 });
 
@@ -140,6 +140,8 @@ test("reports background chart loading without hiding the current overview", () 
   const failed = flatten(renderSalesScreen({ ...args, screen: "days", historyState: "error" }) as ScreenNode);
   assert.equal(loading.find((item) => item.id === "sales-history-status")?.text, "LOADING");
   assert.equal(failed.find((item) => item.id === "sales-history-status")?.text, "NO DATA");
+  assert.equal(failed.find((item) => item.id === "sales-loading-icon")?.type, "animation");
+  assert.equal(loading.find((item) => item.id === "sales-loading-icon")?.type, "animation");
   assert.equal(overview.find((item) => item.id === "sales-count")?.text, "145");
 });
 

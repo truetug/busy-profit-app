@@ -85,12 +85,16 @@ export function renderSalesScreen(args: {
     ]);
   }
   if (screen === "days") {
-    return { type: "text", id: "sales-history-status", text: historyState === "error" ? "NO DATA" : "LOADING", font: "bold", color: WHITE };
+    return row({ align: "center", gap: GAP, width: SCREEN.width, height: SCREEN.height }, [
+      { type: "animation", id: SALES_LOADING_ICON_ID, path: "animations/sales_loading.anim",
+        loop: true, await_previous_end: false, opacity: 100, width: 16, height: 16 },
+      { type: "text", id: "sales-history-status", text: historyState === "error" ? "NO DATA" : "LOADING", font: "bold", color: WHITE },
+    ]);
   }
 
   if (screen === "home") {
     const date = formatDateTime(now);
-    const isLoading = count === undefined && !args.accessRequired;
+    const isLoading = count === undefined || args.accessRequired === true;
     const headline = count === undefined || args.accessRequired ? undefined : salesHeadline(count, now);
     const mark: Node = isLoading
       ? {
