@@ -46,6 +46,13 @@ export function clampNegativeY<T extends { y?: number }>(elements: T[]): T[] {
   );
 }
 
+/** Confirms removal of the previous frame before a different screen can be drawn. */
+export async function clearBeforeFrameChange(previousIds: string[], nextIds: string[], clear: () => Promise<void>): Promise<boolean> {
+  if (!previousIds.some((id) => !nextIds.includes(id))) return false;
+  await clear();
+  return true;
+}
+
 /** Returns display element IDs that were visible before but are absent from the next frame. */
 export function staleElementIds(previousIds: string[], nextIds: string[]): string[] {
   return previousIds.filter((id) => !nextIds.includes(id));

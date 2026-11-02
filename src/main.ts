@@ -9,7 +9,7 @@ import { actionForInput, encoderMovement } from "./input.ts";
 import { startMinuteClock } from "./minute-clock.ts";
 import { dailySalesHeights, interpolateBarHeights } from "./screens/sales-chart.ts";
 import { SALES_LOADING_ICON_ID } from "./screens/sales-ids.ts";
-import { changedElements, clampNegativeY, clearDisplay, fetchWithTimeout, invalidateDrawnElements, mergeDrawnElementIds, staleElementIds } from "./display-api.ts";
+import { changedElements, clampNegativeY, clearBeforeFrameChange, clearDisplay, fetchWithTimeout, invalidateDrawnElements } from "./display-api.ts";
 import { moveDayCursor } from "./model/navigation.ts";
 import { HOME_HISTORY_DAYS, SALES_HISTORY_DAYS } from "./model/sales.ts";
 import { createTaskScope } from "./task-scope.ts";
@@ -107,7 +107,19 @@ async function draw(): Promise<void> {
       const elements = clampNegativeY([...positionSalesDigits(screenElements), ...(screen === "home" && notificationCount === undefined && nextPollAt
         ? countdownIndicator(nextPollAt - Date.now()) : [])]);
       const nextElementIds = elements.flatMap((element) => element.id ? [element.id] : []);
-      const staleIds = staleElementIds(activeElementIds, nextElementIds);
+      // This firmware has no atomic replace operation: clear the old frame before
+      // drawing a different element set, never show both screens at once.
+      try {
+        if (await clearBeforeFrameChange(activeElementIds, nextElementIds, () =>
+          clearDisplay(DISPLAY_DRAW_URL, APP, undefined,
+            (input, init) => fetchWithTimeout(input, init, DISPLAY_REQUEST_TIMEOUT_MS)))) {
+          activeElementIds = [];
+          drawnElements.clear();
+        }
+      } catch (error) {
+        console.error(`${APP}: frame replacement clear failed: ${String(error)}`);
+        return;
+      }
       const changed = changedElements(elements, drawnElements);
       let drawSucceeded = false;
       try {
@@ -130,50 +142,9 @@ async function draw(): Promise<void> {
         if (message !== lastDrawError) console.error(`${APP}: display draw failed: ${message}`);
         lastDrawError = message;
         invalidateDrawnElements(drawnElements);
-        activeElementIds = [];
       }
       if (exiting) return;
-      if (drawSucceeded && pendingDraw) {
-        activeElementIds = mergeDrawnElementIds(activeElementIds, nextElementIds);
-        continue;
-      }
-      if (drawSucceeded && staleIds.length > 0) {
-        try {
-          await clearDisplay(
-            DISPLAY_DRAW_URL,
-            APP,
-            staleIds,
-            (input, init) => fetchWithTimeout(input, init, DISPLAY_REQUEST_TIMEOUT_MS),
-          );
-          activeElementIds = nextElementIds;
-          for (const id of staleIds) drawnElements.delete(id);
-        } catch (error) {
-          if (exiting) return;
-          console.warn(`${APP}: selected stale-element cleanup failed; clearing and redrawing: ${error instanceof Error ? error.message : String(error)}`);
-          try {
-            await clearDisplay(
-              DISPLAY_DRAW_URL,
-              APP,
-              undefined,
-              (input, init) => fetchWithTimeout(input, init, DISPLAY_REQUEST_TIMEOUT_MS),
-            );
-            const response = await fetchWithTimeout(DISPLAY_DRAW_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ application_name: APP, priority: 50, elements }),
-            }, DISPLAY_REQUEST_TIMEOUT_MS);
-            if (!response.ok) throw new Error(`DisplayDraw HTTP ${response.status}: ${await response.text()}`);
-            activeElementIds = nextElementIds;
-            drawnElements = new Map(elements.flatMap((element) => element.id ? [[element.id, JSON.stringify(element)]] : []));
-          } catch (fallbackError) {
-            activeElementIds = [];
-            drawnElements.clear();
-            console.error(`${APP}: display recovery failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
-          }
-        }
-      } else if (drawSucceeded) {
-        activeElementIds = nextElementIds;
-      }
+      if (drawSucceeded) activeElementIds = nextElementIds;
     } while (pendingDraw && !exiting);
   } finally {
     drawInFlight = undefined;
