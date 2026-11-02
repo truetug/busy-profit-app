@@ -22,10 +22,10 @@ const GLYPHS: Record<string, string[]> = {
 };
 
 /** Rasterizes the native bold digits without changing their strokes or spacing. */
-export function salesDigits(text: string): string {
+export function salesDigits(text: string, color = "#FFFFFFFF"): string {
   if (!/^\d+$/.test(text) && text !== "LOADING") throw new Error("Unsupported sales headline");
   return generateXpm2({
-    palette: { ".": "None", w: "#FFFFFFFF" },
+    palette: { ".": "None", w: color },
     grid: Array.from({ length: 7 }, (_, y) => [...text].map((glyph) => GLYPHS[glyph]![y]).join(".")),
   });
 }
@@ -44,6 +44,6 @@ export function positionSalesDigits(elements: ReturnType<typeof render>): Return
       y: notification ? 4 : 1, width, height: 7, opacity: 100, z_index: 2,
     };
     return notification ? [number, { ...number, id: "sales-notification-shadow", x: number.x + 1, y: number.y + 1,
-      z_index: 1, data: number.data.replace("#FFFFFFFF", "#C02828FF") }] : [number];
+      z_index: 1, data: salesDigits(element.text!, "#C02828FF") }] : [number];
   });
 }

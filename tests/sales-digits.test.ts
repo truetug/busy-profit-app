@@ -70,6 +70,10 @@ test("adds a red one-pixel shadow beneath white notification digits only", () =>
   assert.equal(shadow.x, number.x! + 1);
   assert.equal(shadow.y, number.y! + 1);
   assert.ok(shadow.z_index! < number.z_index!);
-  assert.equal(shadow.type === "xpmbitmap" && shadow.data, salesDigits("5021").replace("#FFFFFFFF", "#C02828FF"));
+  assert.equal(shadow.type, "xpmbitmap");
+  if (shadow.type !== "xpmbitmap") assert.fail("expected shadow bitmap");
+  assert.match(shadow.data, /w c #C02828\n/);
+  assert.doesNotMatch(shadow.data, /#FFFFFF/);
+  assert.equal(shadow.data.split("\n").slice(4).join("\n"), salesDigits("5021").split("\n").slice(4).join("\n"));
   assert.equal(number.type === "xpmbitmap" && number.data, salesDigits("5021"));
 });
