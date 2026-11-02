@@ -43,7 +43,9 @@ export function positionSalesDigits(elements: ReturnType<typeof render>): Return
       x: notification ? Math.floor((72 - width) / 2) : 19,
       y: notification ? 4 : 1, width, height: 7, opacity: 100, z_index: 2,
     };
-    return notification ? [number, { ...number, id: "sales-notification-shadow", x: number.x + 1, y: number.y + 1,
-      z_index: 1, data: salesDigits(element.text!, "#C02828FF") }] : [number];
+    if (element.text === "LOADING") return [number];
+    return [number, { ...number, id: notification ? "sales-notification-shadow" : "sales-count-shadow",
+      x: number.x + 1, y: number.y + 1, z_index: 1,
+      data: salesDigits(element.text!, notification ? "#C02828FF" : "#606060FF") }];
   });
 }

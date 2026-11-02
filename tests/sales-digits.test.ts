@@ -63,7 +63,7 @@ test("ships a slow native 72x16 notification animation", () => {
   assert.equal(animation[16], 4);
 });
 
-test("adds a red one-pixel shadow beneath white notification digits only", () => {
+test("adds a red one-pixel shadow beneath white notification digits", () => {
   const elements = positionSalesDigits([{ type: "text", id: "sales-notification", text: "5021", font: "bold" }]);
   const number = elements.find((element) => element.id === "sales-notification")!;
   const shadow = elements.find((element) => element.id === "sales-notification-shadow")!;
@@ -76,4 +76,19 @@ test("adds a red one-pixel shadow beneath white notification digits only", () =>
   assert.doesNotMatch(shadow.data, /#FFFFFF/);
   assert.equal(shadow.data.split("\n").slice(4).join("\n"), salesDigits("5021").split("\n").slice(4).join("\n"));
   assert.equal(number.type === "xpmbitmap" && number.data, salesDigits("5021"));
+});
+
+test("adds a gray one-pixel shadow to the main total without moving its digits", () => {
+  const elements = positionSalesDigits([{ type: "text", id: "sales-count", text: "5021", font: "bold" }]);
+  const number = elements.find((element) => element.id === "sales-count-digits")!;
+  const shadow = elements.find((element) => element.id === "sales-count-shadow")!;
+  assert.equal(number.x, 19);
+  assert.equal(number.y, 1);
+  assert.equal(shadow.x, 20);
+  assert.equal(shadow.y, 2);
+  assert.ok(shadow.z_index! < number.z_index!);
+  assert.equal(shadow.type, "xpmbitmap");
+  if (shadow.type !== "xpmbitmap") assert.fail("expected shadow bitmap");
+  assert.match(shadow.data, /w c #606060\n/);
+  assert.equal(positionSalesDigits([{ type: "text", id: "sales-count", text: "LOADING", font: "bold" }]).length, 1);
 });
