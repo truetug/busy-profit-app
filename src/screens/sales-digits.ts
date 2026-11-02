@@ -32,7 +32,7 @@ export function positionSalesDigits(elements: ReturnType<typeof render>): Return
     const notification = element.id === "sales-notification";
     const width = element.text!.length * 7 - 1;
     return {
-      type: "xpmbitmap", id: element.id, data: salesDigits(element.text!),
+      type: "xpmbitmap", id: notification ? element.id : "sales-count-digits", data: salesDigits(element.text!),
       x: notification ? Math.floor((72 - width) / 2) : 19,
       y: notification ? 4 : 1, width, height: 7, opacity: 100, z_index: 2,
     };

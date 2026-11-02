@@ -11,7 +11,7 @@ import { staleElementIds } from "../src/display-api.ts";
 
 test("renders the real home layout with digits at row one and the date origin at row eight", () => {
   const elements = positionSalesDigits(render(renderSalesScreen({ screen: "home", now: new Date(2026, 10, 2), count: 5015, points: [], selectedDay: 35, stale: false })));
-  assert.equal(elements.find((element) => element.id === "sales-count")?.y, 1);
+  assert.equal(elements.find((element) => element.id === "sales-count-digits")?.y, 1);
   assert.equal(elements.find((element) => element.id === "sales-info")?.y, 8);
 });
 
@@ -21,6 +21,8 @@ test("places exact bold sales glyphs one pixel below the top edge", () => {
   assert.equal(number?.y, 1);
   assert.equal(number?.x, 19);
   assert.equal(number?.height, 7);
+  assert.equal(number?.id, "sales-count-digits");
+  assert.deepEqual(staleElementIds(["sales-count"], [number!.id!]), ["sales-count"]);
   assert.match(salesDigits("5015"), /27 7 2 1/);
   assert.match(salesDigits("5015"), /#FFFFFF/);
 });
