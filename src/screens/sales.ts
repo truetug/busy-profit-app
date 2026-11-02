@@ -72,6 +72,7 @@ export function renderSalesScreen(args: {
   iconHeights?: number[];
   notificationCount?: number;
   error?: string;
+  wifiOffline?: boolean;
 }): Node {
   const { screen, now, count, points, stale, iconHeights, notificationCount, error, historyState } = args;
   if (notificationCount !== undefined) {
@@ -88,7 +89,7 @@ export function renderSalesScreen(args: {
 
   if (screen === "home") {
     const date = formatDateTime(now);
-    const isLoading = count === undefined && !error;
+    const isLoading = count === undefined;
     const headline = count === undefined ? undefined : salesHeadline(count, now);
     const mark: Node = isLoading
       ? {
@@ -128,13 +129,13 @@ export function renderSalesScreen(args: {
             : {
                 type: "text",
                 id: "sales-count",
-                text: error ? "NO DATA" : "LOADING",
+                text: args.wifiOffline ? "NO WIFI" : "LOADING",
                 font: "bold",
                 color: WHITE,
               },
           {
             type: "text", id: "sales-info",
-            text: count === undefined && error ? `${error} · retrying` : date,
+            text: date,
             font: "small", color: error || stale ? SALES_ERROR_COLOR : DIM, width: TEXT_W, dy: 0,
             scroll_rate: 600, scroll_start_delay: 400, scroll_repeat_delay: 800,
           },

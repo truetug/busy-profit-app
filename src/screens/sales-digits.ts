@@ -32,16 +32,18 @@ export function salesDigits(text: string): string {
 
 /** Places lit headline pixels at row one instead of clamping a negative font origin. */
 export function positionSalesDigits(elements: ReturnType<typeof render>): ReturnType<typeof render> {
-  return elements.map((element) => {
-    if (element.id === "sales-notification-background") return { ...element, x: 0, y: 0 };
-    if (element.type !== "text" || (!/^\d+$/.test(element.text ?? "") && element.text !== "LOADING")) return element;
-    if (element.id !== "sales-count" && element.id !== "sales-notification") return element;
+  return elements.flatMap((element): ReturnType<typeof render> => {
+    if (element.id === "sales-notification-background") return [{ ...element, x: 0, y: 0 }];
+    if (element.type !== "text" || (!/^\d+$/.test(element.text ?? "") && element.text !== "LOADING")) return [element];
+    if (element.id !== "sales-count" && element.id !== "sales-notification") return [element];
     const notification = element.id === "sales-notification";
     const width = [...element.text!].reduce((sum, glyph) => sum + GLYPHS[glyph]![0]!.length + 1, -1);
-    return {
-      type: "xpmbitmap", id: notification ? element.id : "sales-count-digits", data: salesDigits(element.text!),
+    const number = {
+      type: "xpmbitmap" as const, id: notification ? element.id : "sales-count-digits", data: salesDigits(element.text!),
       x: notification ? Math.floor((72 - width) / 2) : 19,
       y: notification ? 4 : 1, width, height: 7, opacity: 100, z_index: 2,
     };
+    return notification ? [number, { ...number, id: "sales-notification-shadow", x: number.x + 1, y: number.y + 1,
+      z_index: 1, data: number.data.replace("#FFFFFFFF", "#000000FF") }] : [number];
   });
 }

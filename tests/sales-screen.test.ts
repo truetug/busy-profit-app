@@ -32,6 +32,21 @@ function flatten(node: ScreenNode): ScreenNode[] {
   return [node, ...(node.children ?? []).flatMap(flatten)];
 }
 
+test("keeps loading animation and clock after the initial fetch fails", () => {
+  const elements = flatten(renderSalesScreen({ screen: "home", now: new Date(2026, 10, 2, 12, 30), points: [], selectedDay: 35, stale: false, error: "HTTP 503" }) as ScreenNode);
+  assert.equal(elements.find((item) => item.id === "sales-count")?.text, "LOADING");
+  assert.equal(elements.find((item) => item.id === "sales-loading-icon")?.type, "animation");
+  assert.equal(elements.find((item) => item.id === "sales-info")?.text, "2 Nov, 12:30");
+  assert.equal(elements.find((item) => item.id === "sales-info")?.color, "#FF3838FF");
+});
+
+test("shows a Wi-Fi error only for a confirmed disconnection and always keeps the date", () => {
+  const elements = flatten(renderSalesScreen({ screen: "home", now: new Date(2026, 10, 2, 12, 30), points: [], selectedDay: 35, stale: false, error: "fetch failed", wifiOffline: true }) as ScreenNode);
+  assert.equal(elements.find((item) => item.id === "sales-count")?.text, "NO WIFI");
+  assert.equal(elements.find((item) => item.id === "sales-info")?.text, "2 Nov, 12:30");
+  assert.equal(elements.find((item) => item.id === "sales-loading-icon")?.type, "animation");
+});
+
 test("renders lifetime sales, selling days, and an eight-column icon", () => {
   const tree = renderSalesScreen({
     screen: "home", now: new Date(2026, 9, 30, 12),

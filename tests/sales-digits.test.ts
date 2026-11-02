@@ -62,3 +62,13 @@ test("ships a slow native 72x16 notification animation", () => {
   assert.deepEqual([...animation.subarray(9, 12)], [72, 16, 2]);
   assert.equal(animation[16], 4);
 });
+
+test("adds a black one-pixel shadow beneath notification digits only", () => {
+  const elements = positionSalesDigits([{ type: "text", id: "sales-notification", text: "5021", font: "bold" }]);
+  const number = elements.find((element) => element.id === "sales-notification")!;
+  const shadow = elements.find((element) => element.id === "sales-notification-shadow")!;
+  assert.equal(shadow.x, number.x! + 1);
+  assert.equal(shadow.y, number.y! + 1);
+  assert.ok(shadow.z_index! < number.z_index!);
+  assert.equal(shadow.type === "xpmbitmap" && shadow.data, salesDigits("5021").replace("#FFFFFFFF", "#000000FF"));
+});

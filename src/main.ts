@@ -40,6 +40,7 @@ let screen: Screen = "home";
 let selectedDay = SALES_HISTORY_DAYS - 1;
 let busy = false;
 let loadError: string | undefined;
+let wifiOffline = false;
 let exiting = false;
 let unbindInput: BusyUnbind | undefined;
 let stopPolling: (() => void) | undefined;
@@ -102,6 +103,7 @@ async function draw(): Promise<void> {
         iconHeights,
         notificationCount,
         error: loadError,
+        wifiOffline,
         stale: points.length > 0 && Date.now() - timestamp(points[points.length - 1]!.at) > SALES_POLL_INTERVAL_MS * 2,
       }));
       const elements = clampNegativeY([...positionSalesDigits(screenElements), ...(screen === "home" && notificationCount === undefined && nextPollAt
@@ -236,6 +238,7 @@ async function refresh(): Promise<void> {
     points = nextPoints;
     combinedPoints = mergeHistory(olderPoints, points);
     loadError = undefined;
+    wifiOffline = false;
     count = points[points.length - 1]!.count;
     void showSalesNotification(previous, count);
     void refreshOlder();
@@ -273,6 +276,16 @@ async function refresh(): Promise<void> {
   } catch (error) {
     loadError = error instanceof Error ? error.message : String(error);
     console.error(`${APP}: ${loadError}`);
+    try {
+      const response = await fetchWithTimeout(`${apiOrigin.replace(/\/$/, "")}/api/wifi/status`, undefined, 2_000);
+      if (response.ok) {
+        const status = await response.json() as { state?: string };
+        wifiOffline = status.state === "disconnected" || status.state === "disconnecting";
+      }
+    } catch {
+      // Unknown Wi-Fi state is not evidence that Wi-Fi is disconnected.
+      wifiOffline = false;
+    }
   } finally {
     stopHeartbeat();
     busy = false;
