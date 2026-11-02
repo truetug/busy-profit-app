@@ -44,6 +44,6 @@ export function positionSalesDigits(elements: ReturnType<typeof render>): Return
       y: notification ? 4 : 1, width, height: 7, opacity: 100, z_index: 2,
     };
     return notification ? [number, { ...number, id: "sales-notification-shadow", x: number.x + 1, y: number.y + 1,
-      z_index: 1, data: number.data.replace("#FFFFFFFF", "#000000FF") }] : [number];
+      z_index: 1, data: number.data.replace("#FFFFFFFF", "#C02828FF") }] : [number];
   });
 }
