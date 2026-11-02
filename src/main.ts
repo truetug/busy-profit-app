@@ -42,6 +42,7 @@ let busy = false;
 let loadError: string | undefined;
 let wifiOffline = false;
 let accessKey = "";
+let accountEmail = "";
 let accessRequired = true;
 let exiting = false;
 let unbindInput: BusyUnbind | undefined;
@@ -64,7 +65,7 @@ const olderFeed = createOlderFeedLoader(
   async () => {
     const stopHeartbeat = startFetchHeartbeat("older");
     try {
-      return await fetchHistory("older", fetch, accessKey);
+      return await fetchHistory("older", fetch, accessKey, accountEmail);
     } finally {
       stopHeartbeat();
     }
@@ -236,7 +237,7 @@ async function refresh(): Promise<void> {
   try {
     const previous = count;
     const previousPoints = points;
-    const nextPoints = await fetchHistory("current", fetch, accessKey);
+    const nextPoints = await fetchHistory("current", fetch, accessKey, accountEmail);
     if (exiting) return;
     points = nextPoints;
     combinedPoints = mergeHistory(olderPoints, points);
@@ -357,6 +358,10 @@ export default function run(): void {
       accessKey = typeof value === "string" ? value.trim() : "";
     } catch { accessKey = ""; }
     accessRequired = !accessKey;
+    try {
+      const account = await device.AccountInfoGet();
+      accountEmail = account.linked && typeof account.email === "string" ? account.email.trim() : "";
+    } catch { accountEmail = ""; }
     try {
       await clearDisplay(
         DISPLAY_DRAW_URL,

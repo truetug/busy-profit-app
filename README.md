@@ -6,6 +6,8 @@ BUSY Profit shows lifetime sales, days since launch and the latest eight days on
 
 Sales feeds require a private PIN. After installation, open the app settings in the Bar web interface, enter **PIN**, and restart the app. The PIN is not included in this repository or release package. Public screenshots use demonstration data.
 
+When the Bar is linked to a cloud account, its email is sent in the `X-Busy-Account-Email` request header for server-side usage statistics. This informational value is not used for authorization.
+
 ![Sales overview on BUSY Bar](screenshots/lifetime-summary.png)
 
 ![Daily sales chart on BUSY Bar](screenshots/daily-chart.png)

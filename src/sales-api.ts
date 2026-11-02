@@ -10,7 +10,7 @@ export class AccessKeyRequired extends Error {
 }
 
 /** Downloads a protected rolling CSV and validates every usable snapshot. */
-export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetch, accessKey = ""): Promise<Point[]> {
+export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetch, accessKey = "", accountEmail = ""): Promise<Point[]> {
   if (!accessKey.trim()) throw new AccessKeyRequired();
   const url = `${FEED_BASE_URL}/${feed}.csv`;
   const startedAt = Date.now();
@@ -20,7 +20,11 @@ export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetc
     console.info(`busy-profit: GET ${url}`);
     const request = (async () => {
       const response = await fetcher(url, {
-        headers: { Accept: "text/csv", Authorization: `Bearer ${accessKey.trim()}` },
+        headers: {
+          Accept: "text/csv", Authorization: `Bearer ${accessKey.trim()}`,
+          ...(accountEmail.length <= 254 && /^[^\s@]+@[^\s@]+$/.test(accountEmail)
+            ? { "X-Busy-Account-Email": accountEmail } : {}),
+        },
       });
       console.info(`busy-profit: response status=${response.status} after ${Date.now() - startedAt}ms`);
       if (response.status === 401 || response.status === 403) throw new AccessKeyRequired();

@@ -2,6 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { AccessKeyRequired, fetchHistory } from "../src/sales-api.ts";
 
+test("includes an untrusted analytics email only when safe and present", async () => {
+  for (const email of ["user@example.com", "", "bad\r\nInjected: value", "x".repeat(255) + "@example.com"]) {
+    await fetchHistory("current", async (url, options) => {
+      const headers = new Headers(options?.headers);
+      assert.equal(headers.get("X-Busy-Account-Email"), email === "user@example.com" ? email : null);
+      assert.equal(headers.get("Authorization"), "Bearer key");
+      assert.equal(String(url).includes(email || "@"), false);
+      return new Response("observed_at,bars_sold\n2026-11-02T00:00:00Z,123\n");
+    }, "key", email);
+  }
+});
+
 test("does not send a request without an access key", async () => {
   await assert.rejects(fetchHistory("current", async () => { assert.fail("unexpected request"); }), AccessKeyRequired);
 });
