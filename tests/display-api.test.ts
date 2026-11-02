@@ -42,9 +42,9 @@ test("clears selected display elements in the DELETE JSON body", async () => {
     return new Response(JSON.stringify({ result: "OK" }), { status: 200 });
   };
 
-  await clearDisplay("http://bar/api/display/draw", "app.busy.profit", ["sales-loading-icon"], fetcher);
+  await clearDisplay("http://bar/api/display/draw", "info.truetug.busy.profit", ["sales-loading-icon"], fetcher);
 
-  assert.equal(requestUrl, "http://bar/api/display/draw?application_name=app.busy.profit");
+  assert.equal(requestUrl, "http://bar/api/display/draw?application_name=info.truetug.busy.profit");
   assert.equal(requestInit?.method, "DELETE");
   assert.deepEqual(requestInit?.headers, { "Content-Type": "application/json" });
   assert.deepEqual(JSON.parse(String(requestInit?.body)), {
@@ -61,9 +61,9 @@ test("clears all app elements without sending a stale element list", async () =>
     return new Response(JSON.stringify({ result: "OK" }), { status: 200 });
   };
 
-  await clearDisplay("http://bar/api/display/draw", "app.busy.profit", undefined, fetcher);
+  await clearDisplay("http://bar/api/display/draw", "info.truetug.busy.profit", undefined, fetcher);
 
-  assert.equal(requestUrl, "http://bar/api/display/draw?application_name=app.busy.profit");
+  assert.equal(requestUrl, "http://bar/api/display/draw?application_name=info.truetug.busy.profit");
   assert.deepEqual(JSON.parse(String(requestInit?.body)), {});
 });
 
