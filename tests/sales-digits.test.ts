@@ -9,6 +9,21 @@ import { staleElementIds } from "../src/display-api.ts";
 
 [bold, small, tiny].forEach(registerFontMaps);
 
+test("uses identical native-bold pixel origins for LOADING and sales, with two empty rows before the date", () => {
+  for (const count of [undefined, 5020]) {
+    const elements = positionSalesDigits(render(renderSalesScreen({ screen: "home", now: new Date(2026, 10, 2), count, points: [], selectedDay: 35, stale: false })));
+    const headline = elements.find((element) => element.id === "sales-count-digits");
+    assert.equal(headline?.type, "xpmbitmap");
+    assert.equal(headline?.x, 19);
+    assert.equal(headline?.y, 1);
+    assert.equal(headline?.height, 7);
+    // The small font's first lit row is two pixels below its origin.
+    assert.equal(elements.find((element) => element.id === "sales-info")?.y, 8);
+    assert.equal(8 + 2 - (1 + 7), 2);
+  }
+  assert.match(salesDigits("LOADING"), /46 7 2 1/);
+});
+
 test("renders the real home layout with digits at row one and the date origin at row eight", () => {
   const elements = positionSalesDigits(render(renderSalesScreen({ screen: "home", now: new Date(2026, 10, 2), count: 5015, points: [], selectedDay: 35, stale: false })));
   assert.equal(elements.find((element) => element.id === "sales-count-digits")?.y, 1);

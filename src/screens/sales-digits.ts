@@ -1,7 +1,14 @@
 import { generateXpm2, type render } from "@busy-app/busy-lib";
 
 // Exact six-pixel glyphs from the device's busy_bold_7 font, without its leading.
-const DIGITS: Record<string, string[]> = {
+const GLYPHS: Record<string, string[]> = {
+  L: ["ww...", "ww...", "ww...", "ww...", "ww...", "ww...", "wwwww"],
+  O: [".wwww.", "ww..ww", "ww..ww", "ww..ww", "ww..ww", "ww..ww", ".wwww."],
+  A: ["..ww..", "..ww..", ".wwww.", ".w.ww.", ".wwww.", "ww..ww", "ww..ww"],
+  D: ["wwww..", "ww.ww.", "ww..ww", "ww..ww", "ww..ww", "ww.ww.", "wwww.."],
+  I: ["wwww", ".ww.", ".ww.", ".ww.", ".ww.", ".ww.", "wwww"],
+  N: ["ww...ww", "www..ww", "wwww.ww", "wwwwwww", "ww.wwww", "ww..www", "ww...ww"],
+  G: [".wwww.", "ww..ww", "ww....", "ww.www", "ww..ww", "ww..ww", ".www.w"],
   "0": [".wwww.", "ww..ww", "ww.www", "www.ww", "ww..ww", "ww..ww", ".wwww."],
   "1": ["..ww..", ".www..", "wwww..", "..ww..", "..ww..", "..ww..", "wwwwww"],
   "2": [".wwww.", "ww..ww", "....ww", "..www.", ".ww...", "ww....", "wwwwww"],
@@ -16,10 +23,10 @@ const DIGITS: Record<string, string[]> = {
 
 /** Rasterizes the native bold digits without changing their strokes or spacing. */
 export function salesDigits(text: string): string {
-  if (!/^\d+$/.test(text)) throw new Error("Sales digits must be a non-empty integer");
+  if (!/^\d+$/.test(text) && text !== "LOADING") throw new Error("Unsupported sales headline");
   return generateXpm2({
     palette: { ".": "None", w: "#FFFFFFFF" },
-    grid: Array.from({ length: 7 }, (_, y) => [...text].map((digit) => DIGITS[digit]![y]).join(".")),
+    grid: Array.from({ length: 7 }, (_, y) => [...text].map((glyph) => GLYPHS[glyph]![y]).join(".")),
   });
 }
 
@@ -27,10 +34,10 @@ export function salesDigits(text: string): string {
 export function positionSalesDigits(elements: ReturnType<typeof render>): ReturnType<typeof render> {
   return elements.map((element) => {
     if (element.id === "sales-notification-background") return { ...element, x: 0, y: 0 };
-    if (element.type !== "text" || !/^\d+$/.test(element.text ?? "")) return element;
+    if (element.type !== "text" || (!/^\d+$/.test(element.text ?? "") && element.text !== "LOADING")) return element;
     if (element.id !== "sales-count" && element.id !== "sales-notification") return element;
     const notification = element.id === "sales-notification";
-    const width = element.text!.length * 7 - 1;
+    const width = [...element.text!].reduce((sum, glyph) => sum + GLYPHS[glyph]![0]!.length + 1, -1);
     return {
       type: "xpmbitmap", id: notification ? element.id : "sales-count-digits", data: salesDigits(element.text!),
       x: notification ? Math.floor((72 - width) / 2) : 19,
