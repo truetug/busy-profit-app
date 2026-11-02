@@ -9,7 +9,7 @@ test("loads the two-column public CSV", async () => {
   const fetcher: typeof fetch = async () => new Response(
     "observed_at,bars_sold\n2026-10-30T12:00:00+00:00,5003\n",
   );
-  assert.equal((await fetchHistory("current", fetcher))[0]?.count, 5003);
+  assert.equal((await fetchHistory("current", fetcher, "test-key"))[0]?.count, 5003);
 });
 
 test("loads the compact current CSV from its dedicated URL", async () => {
@@ -18,7 +18,7 @@ test("loads the compact current CSV from its dedicated URL", async () => {
     url = String(input);
     return new Response(`${HEADER}\n2026-10-30T12:00:00+00:00,5003,2026-10-30T12:00:00+00:00\n`);
   };
-  const points = await fetchHistory("current", fetcher);
+  const points = await fetchHistory("current", fetcher, "test-key");
   assert.equal(url, "https://profit.busy.truetug.info/current.csv");
   assert.equal(points.length, 1);
   assert.equal(points[0]?.count, 5003);
@@ -26,13 +26,13 @@ test("loads the compact current CSV from its dedicated URL", async () => {
 
 test("accepts an empty older feed but rejects an empty current feed", async () => {
   const fetcher: typeof fetch = async () => new Response(`${HEADER}\n`);
-  assert.deepEqual(await fetchHistory("older", fetcher), []);
-  await assert.rejects(fetchHistory("current", fetcher), /no valid observations/);
+  assert.deepEqual(await fetchHistory("older", fetcher, "test-key"), []);
+  await assert.rejects(fetchHistory("current", fetcher, "test-key"), /no valid observations/);
 });
 
 test("rejects a malformed feed instead of treating it as empty history", async () => {
   const fetcher: typeof fetch = async () => new Response("invalid,header\n");
-  await assert.rejects(fetchHistory("older", fetcher), /invalid CSV header/);
+  await assert.rejects(fetchHistory("older", fetcher, "test-key"), /invalid CSV header/);
 });
 
 test("merges chronological feeds and deduplicates their overlapping boundary", () => {

@@ -2,7 +2,7 @@ import type { Point, SalesView } from "./model/sales.ts";
 import { addr, device } from "@shared/device";
 import { render } from "@busy-app/busy-lib";
 import manifest from "./appmeta/manifest.json";
-import { fetchHistory } from "./sales-api.ts";
+import { AccessKeyRequired, fetchHistory } from "./sales-api.ts";
 import { dailyGraphElements, renderSalesScreen } from "./screens/sales.ts";
 import { increments, mergeHistory, timestamp } from "./model/sales.ts";
 import { actionForInput, encoderMovement } from "./input.ts";
@@ -41,6 +41,8 @@ let selectedDay = SALES_HISTORY_DAYS - 1;
 let busy = false;
 let loadError: string | undefined;
 let wifiOffline = false;
+let accessKey = "";
+let accessRequired = true;
 let exiting = false;
 let unbindInput: BusyUnbind | undefined;
 let stopPolling: (() => void) | undefined;
@@ -62,7 +64,7 @@ const olderFeed = createOlderFeedLoader(
   async () => {
     const stopHeartbeat = startFetchHeartbeat("older");
     try {
-      return await fetchHistory("older");
+      return await fetchHistory("older", fetch, accessKey);
     } finally {
       stopHeartbeat();
     }
@@ -104,9 +106,10 @@ async function draw(): Promise<void> {
         notificationCount,
         error: loadError,
         wifiOffline,
+        accessRequired,
         stale: points.length > 0 && Date.now() - timestamp(points[points.length - 1]!.at) > SALES_POLL_INTERVAL_MS * 2,
       }));
-      const elements = clampNegativeY([...positionSalesDigits(screenElements), ...(screen === "home" && notificationCount === undefined && nextPollAt
+      const elements = clampNegativeY([...positionSalesDigits(screenElements), ...(screen === "home" && !accessRequired && notificationCount === undefined && nextPollAt
         ? countdownIndicator(nextPollAt - Date.now()) : [])]);
       const nextElementIds = elements.flatMap((element) => element.id ? [element.id] : []);
       // This firmware has no atomic replace operation: clear the old frame before
@@ -233,7 +236,7 @@ async function refresh(): Promise<void> {
   try {
     const previous = count;
     const previousPoints = points;
-    const nextPoints = await fetchHistory("current");
+    const nextPoints = await fetchHistory("current", fetch, accessKey);
     if (exiting) return;
     points = nextPoints;
     combinedPoints = mergeHistory(olderPoints, points);
@@ -274,6 +277,11 @@ async function refresh(): Promise<void> {
     if (exiting) return;
     await animateChartTransition(previousPoints, points);
   } catch (error) {
+    if (error instanceof AccessKeyRequired) {
+      accessRequired = true;
+      screen = "home";
+      return;
+    }
     loadError = error instanceof Error ? error.message : String(error);
     console.error(`${APP}: ${loadError}`);
     try {
@@ -344,6 +352,12 @@ export default function run(): void {
 
   void (async () => {
     try {
+      const settings = await device.AppsSettingsGet({ app_id: APP });
+      const value = settings.values?.access_key;
+      accessKey = typeof value === "string" ? value.trim() : "";
+    } catch { accessKey = ""; }
+    accessRequired = !accessKey;
+    try {
       await clearDisplay(
         DISPLAY_DRAW_URL,
         APP,
@@ -358,6 +372,7 @@ export default function run(): void {
     if (exiting) return;
     stopClock = startMinuteClock(() => { void draw(); });
     stopPolling = startSalesPolling(() => {
+      if (accessRequired) return;
       nextPollAt = Date.now() + SALES_POLL_INTERVAL_MS;
       updateCountdown();
       void refresh();

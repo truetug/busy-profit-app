@@ -4,13 +4,15 @@ BUSY Profit shows lifetime sales, days since launch and the latest eight days on
 
 ## Screenshots
 
+Sales feeds require a private PIN. After installation, open the app settings in the Bar web interface, enter **PIN**, and restart the app. The PIN is not included in this repository or release package. Public screenshots use demonstration data.
+
 ![Sales overview on BUSY Bar](screenshots/lifetime-summary.png)
 
 ![Daily sales chart on BUSY Bar](screenshots/daily-chart.png)
 
 ![New-sales notification on BUSY Bar](screenshots/new-sales.png)
 
-Screenshots are captured from a real device. Native 72×16 catalog images: [overview](screenshots/catalog/lifetime-summary.png), [daily chart](screenshots/catalog/daily-chart.png), [new sales](screenshots/catalog/new-sales.png). Documentation images use nearest-neighbor enlargement.
+Screenshots use demonstration data. Native 72×16 catalog images: [overview](screenshots/catalog/lifetime-summary.png), [daily chart](screenshots/catalog/daily-chart.png), [new sales](screenshots/catalog/new-sales.png). Documentation images use nearest-neighbor enlargement.
 
 ## Build
 

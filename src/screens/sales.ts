@@ -73,6 +73,7 @@ export function renderSalesScreen(args: {
   notificationCount?: number;
   error?: string;
   wifiOffline?: boolean;
+  accessRequired?: boolean;
 }): Node {
   const { screen, now, count, points, stale, iconHeights, notificationCount, error, historyState } = args;
   if (notificationCount !== undefined) {
@@ -89,8 +90,8 @@ export function renderSalesScreen(args: {
 
   if (screen === "home") {
     const date = formatDateTime(now);
-    const isLoading = count === undefined;
-    const headline = count === undefined ? undefined : salesHeadline(count, now);
+    const isLoading = count === undefined && !args.accessRequired;
+    const headline = count === undefined || args.accessRequired ? undefined : salesHeadline(count, now);
     const mark: Node = isLoading
       ? {
           type: "animation",
@@ -129,9 +130,10 @@ export function renderSalesScreen(args: {
             : {
                 type: "text",
                 id: "sales-count",
-                text: args.wifiOffline ? "NO WIFI" : "LOADING",
+                text: args.accessRequired ? "SET PIN" : args.wifiOffline ? "NO WIFI" : "LOADING",
                 font: "bold",
-                color: WHITE,
+                ...(args.accessRequired ? { font: "small" as const } : {}),
+                color: args.accessRequired ? SALES_ERROR_COLOR : WHITE,
               },
           {
             type: "text", id: "sales-info",

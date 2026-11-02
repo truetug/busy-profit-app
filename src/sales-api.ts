@@ -4,8 +4,14 @@ const FEED_BASE_URL = "https://profit.busy.truetug.info";
 const REQUEST_TIMEOUT_MS = 20_000;
 export type SalesFeed = "current" | "older";
 
-/** Downloads the public rolling CSV and validates every usable snapshot. */
-export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetch): Promise<Point[]> {
+/** Distinguishes missing or rejected credentials from transient network failures. */
+export class AccessKeyRequired extends Error {
+  constructor() { super("Sales access key required"); this.name = "AccessKeyRequired"; }
+}
+
+/** Downloads a protected rolling CSV and validates every usable snapshot. */
+export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetch, accessKey = ""): Promise<Point[]> {
+  if (!accessKey.trim()) throw new AccessKeyRequired();
   const url = `${FEED_BASE_URL}/${feed}.csv`;
   const startedAt = Date.now();
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -14,9 +20,10 @@ export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetc
     console.info(`busy-profit: GET ${url}`);
     const request = (async () => {
       const response = await fetcher(url, {
-        headers: { Accept: "text/csv" },
+        headers: { Accept: "text/csv", Authorization: `Bearer ${accessKey.trim()}` },
       });
       console.info(`busy-profit: response status=${response.status} after ${Date.now() - startedAt}ms`);
+      if (response.status === 401 || response.status === 403) throw new AccessKeyRequired();
       if (!response.ok) throw new Error(`Sales history returned HTTP ${response.status}`);
       const body = await response.text();
       console.info(`busy-profit: body chars=${body.length} after ${Date.now() - startedAt}ms`);

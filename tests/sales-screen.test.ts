@@ -32,6 +32,16 @@ function flatten(node: ScreenNode): ScreenNode[] {
   return [node, ...(node.children ?? []).flatMap(flatten)];
 }
 
+test("shows SET PIN instead of sales or loading when authorization is required", () => {
+  for (const count of [undefined, 1234]) {
+    const elements = flatten(renderSalesScreen({ screen: "home", now: new Date(2026, 10, 2, 12, 30), count, points: [], selectedDay: 35, stale: false, accessRequired: true }) as ScreenNode);
+    assert.equal(elements.find((item) => item.id === "sales-count")?.text, "SET PIN");
+    assert.equal(elements.find((item) => item.id === "sales-count")?.color, "#FF3838FF");
+    assert.equal(elements.find((item) => item.id === "sales-info")?.text, "2 Nov, 12:30");
+    assert.equal(elements.some((item) => item.id === "sales-loading-icon"), false);
+  }
+});
+
 test("keeps loading animation and clock after the initial fetch fails", () => {
   const elements = flatten(renderSalesScreen({ screen: "home", now: new Date(2026, 10, 2, 12, 30), points: [], selectedDay: 35, stale: false, error: "HTTP 503" }) as ScreenNode);
   assert.equal(elements.find((item) => item.id === "sales-count")?.text, "LOADING");
