@@ -12,6 +12,7 @@ type ScreenNode = {
   dy?: number;
   z_index?: number;
   font?: string;
+  color?: string;
   justify?: string;
   gap?: number;
   width?: number;
@@ -39,6 +40,8 @@ test("renders lifetime sales, selling days, and an eight-column icon", () => {
   const elements = flatten(tree);
 
   assert.equal(elements.find((item) => item.id === "sales-count")?.text, "145");
+  assert.equal(elements.find((item) => item.id === "sales-count")?.font, "bold");
+  assert.equal(elements.find((item) => item.id === "sales-count")?.dy, undefined);
   assert.equal(elements.find((item) => item.id === "sales-days")?.text, "108");
   assert.equal(elements.find((item) => item.id === "sales-days")?.font, "tiny");
   assert.equal(elements.find((item) => item.children?.some((child) => child.id === "sales-days"))?.justify, "between");
@@ -100,6 +103,7 @@ test("shows the large updated total over either screen", () => {
     }) as ScreenNode;
     const elements = flatten(tree);
     assert.equal(elements.find((item) => item.id === "sales-notification")?.text, "146");
+    assert.equal(elements.find((item) => item.id === "sales-notification")?.font, "bold");
     assert.equal(elements.some((item) => item.id === "sales-chart"), false);
   }
 });
@@ -112,4 +116,32 @@ test("reports background chart loading without hiding the current overview", () 
   assert.equal(loading.find((item) => item.id === "sales-history-status")?.text, "LOADING");
   assert.equal(failed.find((item) => item.id === "sales-history-status")?.text, "NO DATA");
   assert.equal(overview.find((item) => item.id === "sales-count")?.text, "145");
+});
+
+test("keeps the sales headline as bright and bold as the reference temperature", () => {
+  const args = { now: new Date(2026, 10, 2, 1, 50), count: 5015, points, selectedDay: 35, stale: false };
+  for (const notificationCount of [undefined, 5016]) {
+    const elements = flatten(renderSalesScreen({ ...args, screen: "home", notificationCount }) as ScreenNode);
+    const number = elements.find((item) => item.id === (notificationCount === undefined ? "sales-count" : "sales-notification"));
+    assert.equal(number?.font, "bold");
+    assert.equal(number?.color, "#FFFFFFFF");
+  }
+});
+
+test("restores the overview and its clock after the new-sales notification ends", () => {
+  const args = { screen: "home" as const, now: new Date(2026, 10, 2, 1, 50), count: 5016, points, selectedDay: 35, stale: false };
+  const notification = flatten(renderSalesScreen({ ...args, notificationCount: 5016 }) as ScreenNode);
+  const restored = flatten(renderSalesScreen(args) as ScreenNode);
+  assert.equal(notification.some((item) => item.id === "sales-info"), false);
+  assert.equal(restored.some((item) => item.id === "sales-notification"), false);
+  assert.equal(restored.find((item) => item.id === "sales-count")?.text, "5016");
+  assert.equal(restored.find((item) => item.id === "sales-info")?.text, "2 Nov, 01:50");
+  assert.equal(restored.find((item) => item.id === "sales-mark")?.type, "xpmbitmap");
+});
+
+test("restores the selected daily chart after a notification over the history screen", () => {
+  const now = new Date(2026, 10, 2, 1, 50);
+  const before = dailyGraphElements(points, now, 32);
+  renderSalesScreen({ screen: "days", now, count: 5016, points, selectedDay: 32, stale: false, notificationCount: 5016 });
+  assert.deepEqual(dailyGraphElements(points, now, 32), before);
 });

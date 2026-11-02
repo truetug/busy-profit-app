@@ -18,6 +18,7 @@ import { SALES_POLL_INTERVAL_MS, startSalesPolling } from "./sales-polling.ts";
 import { salesNotification } from "./model/sales-notification.ts";
 import { countdownIndicator } from "./countdown-indicator.ts";
 import { createEncoderDrawScheduler } from "./encoder-draw.ts";
+import { positionSalesDigits } from "./screens/sales-digits.ts";
 
 const APP = manifest.id;
 const CHART_TRANSITION_STEPS = 6;
@@ -103,7 +104,7 @@ async function draw(): Promise<void> {
         error: loadError,
         stale: points.length > 0 && Date.now() - timestamp(points[points.length - 1]!.at) > SALES_POLL_INTERVAL_MS * 2,
       }));
-      const elements = clampNegativeY([...screenElements, ...(screen === "home" && notificationCount === undefined && nextPollAt
+      const elements = clampNegativeY([...positionSalesDigits(screenElements), ...(screen === "home" && notificationCount === undefined && nextPollAt
         ? countdownIndicator(nextPollAt - Date.now()) : [])]);
       const nextElementIds = elements.flatMap((element) => element.id ? [element.id] : []);
       const staleIds = staleElementIds(activeElementIds, nextElementIds);

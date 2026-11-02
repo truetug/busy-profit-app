@@ -76,7 +76,10 @@ export function renderSalesScreen(args: {
   const { screen, now, count, points, stale, iconHeights, notificationCount, error, historyState } = args;
   if (notificationCount !== undefined) {
     return row({ justify: "center", align: "center", width: SCREEN.width, height: SCREEN.height }, [
-      { type: "text", id: "sales-notification", text: String(notificationCount), font: "large", color: WHITE },
+      { type: "animation", id: "sales-notification-background",
+        path: "animations/sales_notification.anim", loop: true, await_previous_end: false,
+        width: 72, height: 16, opacity: 100, z_index: 0 },
+      { type: "text", id: "sales-notification", text: String(notificationCount), font: "bold", color: WHITE },
     ]);
   }
   if (screen === "days") {
@@ -115,7 +118,7 @@ export function renderSalesScreen(args: {
               ? row({ align: "center", justify: "between", width: TEXT_W - 1 }, [
                   {
                     type: "text", id: "sales-count", text: headline.count,
-                    font: "bold", color: WHITE, dy: 1,
+                    font: "bold", color: WHITE,
                   },
                   {
                     type: "text", id: "sales-days", text: headline.days,
@@ -128,7 +131,6 @@ export function renderSalesScreen(args: {
                 text: error ? "NO DATA" : "LOADING",
                 font: "bold",
                 color: WHITE,
-                dy: 1,
               },
           {
             type: "text", id: "sales-info",
