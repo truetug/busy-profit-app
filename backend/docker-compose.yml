@@ -18,3 +18,22 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+
+  analytics:
+    image: ghcr.io/truetug/busy-profit-app-backend:latest
+    container_name: busy-profit-app-analytics
+    command: ["python", "-m", "busy_profit.analytics_worker"]
+    restart: unless-stopped
+    environment:
+      BUSY_USAGE_DATABASE_PATH: /data/usage.sqlite3
+      BUSY_USAGE_LOG_DIRECTORY: /logs
+      BUSY_USAGE_INTERVAL_SECONDS: "3600"
+      BUSY_USAGE_RETENTION_DAYS: "90"
+    volumes:
+      - ../data:/data
+      - /srv/edge/logs:/logs:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
