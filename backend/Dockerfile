@@ -1,7 +1,7 @@
 FROM python:3.13-slim AS landing
 
 WORKDIR /build
-RUN pip install --no-cache-dir --disable-pip-version-check 'markdown-it-py>=3,<5'
+RUN pip install --no-cache-dir --disable-pip-version-check 'markdown-it-py>=3,<5' 'Pillow>=11,<13'
 COPY README.md /build/README.md
 COPY screenshots /build/screenshots
 COPY src/appmeta/icon_front_8x8.png /build/src/appmeta/icon_front_8x8.png

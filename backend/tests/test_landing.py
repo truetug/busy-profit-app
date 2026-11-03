@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from PIL import Image
 
 from busy_profit.landing import LandingPublisher
 from website.build import build_site
@@ -29,6 +30,14 @@ def test_build_renders_real_readme_and_local_screenshots(tmp_path: Path) -> None
     assert (tmp_path / "style.css").is_file()
     assert 'src="/screenshots/app-icon.png"' in html
     assert (tmp_path / "screenshots/app-icon.png").read_bytes() == (ROOT / "src/appmeta/icon_front_8x8.png").read_bytes()
+    assert 'property="og:image" content="https://profit.busy.truetug.info/screenshots/share-card.png"' in html
+    assert 'name="twitter:card" content="summary_large_image"' in html
+    assert 'property="og:image:width" content="1200"' in html
+    with Image.open(tmp_path / "screenshots/share-card.png") as card:
+        assert card.size == (1200, 630)
+        assert card.format == "PNG"
+        native = Image.open(ROOT / "screenshots/catalog/lifetime-summary.png").convert("RGB")
+        assert card.crop((96, 284, 1104, 508)).resize((72, 16), Image.Resampling.NEAREST).tobytes() == native.tobytes()
 
 
 def test_build_escapes_raw_html_in_markdown(tmp_path: Path) -> None:
@@ -38,9 +47,10 @@ def test_build_escapes_raw_html_in_markdown(tmp_path: Path) -> None:
     """
     source = tmp_path / "source"
     (source / "website").mkdir(parents=True)
-    (source / "screenshots").mkdir()
+    (source / "screenshots/catalog").mkdir(parents=True)
     (source / "src/appmeta").mkdir(parents=True)
-    (source / "src/appmeta/icon_front_8x8.png").write_bytes(b"icon")
+    Image.new("RGB", (8, 8)).save(source / "src/appmeta/icon_front_8x8.png")
+    Image.new("RGB", (72, 16)).save(source / "screenshots/catalog/lifetime-summary.png")
     (source / "README.md").write_text("# Hello\n\n<script>alert(1)</script>\n", encoding="utf-8")
     (source / "website/template.html").write_text("<main><!-- README_CONTENT --></main>", encoding="utf-8")
     (source / "website/style.css").write_text("body {}", encoding="utf-8")
