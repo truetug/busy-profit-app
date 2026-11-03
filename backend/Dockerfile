@@ -23,6 +23,7 @@ RUN pip install --no-cache-dir --disable-pip-version-check \
     -r /app/requirements.txt
 
 COPY backend/src/busy_profit /app/backend/src/busy_profit
+COPY backend/src/request_analytics /app/backend/src/request_analytics
 COPY --from=landing /build/website/dist /app/landing
 
 RUN mkdir -p /data/public && chown -R 1001:1003 /data

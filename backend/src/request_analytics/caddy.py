@@ -7,12 +7,11 @@ from urllib.parse import urlsplit
 
 from pydantic import ValidationError
 
-from busy_profit.usage_models import UsageEvent
+from request_analytics.models import UsageEvent
+from request_analytics.profile import AnalyticsProfile
 
-FEEDS = frozenset({"/current.csv", "/older.csv", "/history.csv"})
 
-
-def parse_usage_line(line: bytes) -> UsageEvent | None:
+def parse_usage_line(line: bytes, profile: AnalyticsProfile) -> UsageEvent | None:
     """Extract supported feed requests and ignore malformed or unrelated input.
 
     Use the socket peer IP only; client headers never select the source address.
@@ -21,19 +20,21 @@ def parse_usage_line(line: bytes) -> UsageEvent | None:
         record = json.loads(line)
         request = record["request"]
         endpoint = urlsplit(request["uri"]).path
-        if endpoint not in FEEDS or request.get("method") not in {"GET", "HEAD"}:
+        if endpoint not in profile.endpoints or request.get("method") not in {"GET", "HEAD"}:
             return None
         headers = request.get("headers", {})
-        values = next((value for key, value in headers.items() if key.lower() == "x-busy-hardware-id"), [])
-        uid = values[0].upper() if isinstance(values, list) and len(values) == 1 and isinstance(values[0], str) else ""
-        if not re.fullmatch(r"[0-9A-F]{24}", uid):
+        values = next((value for key, value in headers.items() if key.lower() == profile.device_header.lower()), [])
+        uid = values[0] if isinstance(values, list) and len(values) == 1 and isinstance(values[0], str) else ""
+        if profile.uppercase_device_id:
+            uid = uid.upper()
+        if not re.fullmatch(profile.device_pattern, uid):
             uid = ""
         telemetry: dict[str, str | int] = {}
         normalized = {key.lower(): value for key, value in headers.items()}
-        session = normalized.get("x-busy-session-id", [""])[0]
+        session = normalized.get(profile.session_header.lower(), [""])[0]
         try:
-            uptime = int(normalized.get("x-busy-uptime-seconds", ["0"])[0])
-            details = int(normalized.get("x-busy-details-count", ["0"])[0])
+            uptime = int(normalized.get(profile.uptime_header.lower(), ["0"])[0])
+            details = int(normalized.get(profile.details_header.lower(), ["0"])[0])
             if isinstance(session, str) and re.fullmatch(r"[a-zA-Z0-9-]{8,64}", session) and 0 <= uptime <= 31536000 and 0 <= details <= 1000000:
                 telemetry = {"session_id": session, "uptime_seconds": uptime, "details_count": details}
         except (ValueError, TypeError, IndexError):

@@ -10,6 +10,8 @@ The original notification WAV files are in `assets/sounds`; run `sh tools/prepar
 
 ## Private usage analytics
 
+The reusable implementation lives in [`src/request_analytics`](src/request_analytics/README.md). BUSY Profit supplies only its profile in `busy_profit.analytics` and the scheduled runtime in `busy_profit.analytics_worker`; the module has no dependency on either the sales collector or the host package.
+
 After each hourly import the worker atomically publishes `/usage.svg` and `/usage-mobile.svg` for the landing. These contain aggregates only. The seven-day window is seven UTC calendar days including partial today. Active bars are distinct hardware IDs with successful requests; new bars were first seen in that window; returning bars were seen earlier; regular bars were active on at least three distinct days. Days before identified collection began are missing, not zero.
 
 App 0.8.7 adds a session ID and cumulative uptime/detail-open counters to existing current-feed requests. `usage_sessions` stores maxima to prevent retries and reordered polls from inflating metrics; `usage_daily` stores increments attributed to the UTC observation day. Starts count the first successfully observed snapshot per session. Runtime excludes an unreported final interval, usually up to one poll; detail opens occurring after the final snapshot may also be missing. Session metrics show their collection start date and are not inferred from older-feed downloads. A small interval crossing midnight is attributed to its reporting day.

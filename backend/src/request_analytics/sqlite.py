@@ -4,7 +4,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from busy_profit.usage_models import UsageDay, UsageEvent, UsageSummary
+from request_analytics.models import UsageDay, UsageEvent, UsageSummary
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
@@ -38,12 +38,13 @@ CREATE TABLE IF NOT EXISTS usage_daily (
 class UsageRepository:
     """Own SQLite connections and commit usage rows together with checkpoints."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, session_endpoint: str) -> None:
         """Initialize a private local database with crash-safe WAL journaling.
 
         Keep all analytics outside the directory served by the web server.
         """
         path.parent.mkdir(parents=True, exist_ok=True)
+        self._session_endpoint = session_endpoint
         self._db = sqlite3.connect(path, timeout=30)
         path.chmod(0o600)
         self._db.execute("PRAGMA journal_mode=WAL")
@@ -84,7 +85,7 @@ class UsageRepository:
         )
         if not uid:
             return
-        if event.status == 200 and event.endpoint == "/current.csv" and event.session_id:
+        if event.status == 200 and event.endpoint == self._session_endpoint and event.session_id:
             self._record_session(event)
         previous = self._db.execute("SELECT last_seen_at, last_ip FROM devices WHERE hardware_id=?", (uid,)).fetchone()
         if previous is None or (at >= previous[0] and ip != previous[1]):

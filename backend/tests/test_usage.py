@@ -7,9 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from busy_profit.usage_application import import_usage_logs
-from busy_profit.usage_parser import parse_usage_line
-from busy_profit.usage_storage import UsageRepository
+from functools import partial
+
+from busy_profit.analytics import PROFILE
+from request_analytics import import_usage_logs as import_logs, parse_usage_line as parse_line, UsageRepository as Repository
+
+import_usage_logs = partial(import_logs, profile=PROFILE)
+parse_usage_line = partial(parse_line, profile=PROFILE)
+UsageRepository = partial(Repository, session_endpoint=PROFILE.session_endpoint)
 
 UID = "203638485431500400ABCDEF"
 NOW = datetime(2026, 11, 3, tzinfo=UTC)

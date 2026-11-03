@@ -4,10 +4,14 @@ from datetime import timedelta
 from pathlib import Path
 from xml.etree import ElementTree
 
-from busy_profit.usage_infographic import publish_usage_infographic, render_usage_svg
-from busy_profit.usage_parser import parse_usage_line
-from busy_profit.usage_storage import UsageRepository
-from test_usage import NOW, UID, entry
+from functools import partial
+
+from busy_profit.analytics import LABELS
+from request_analytics import publish_usage_infographic as publish, render_usage_svg as render
+from test_usage import NOW, UID, entry, parse_usage_line, UsageRepository
+
+publish_usage_infographic = partial(publish, labels=LABELS)
+render_usage_svg = partial(render, labels=LABELS)
 
 
 def test_session_maxima_are_idempotent_and_ignore_old_snapshots(tmp_path: Path) -> None:

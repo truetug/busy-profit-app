@@ -10,7 +10,7 @@ class UsageEvent(BaseModel):
     """Represent one feed request without credentials or account information."""
 
     at: datetime
-    hardware_id: str = Field(pattern=r"^([0-9A-F]{24})?$")
+    hardware_id: str = Field(max_length=128)
     endpoint: str
     status: int = Field(ge=100, le=599)
     ip: IPv4Address | IPv6Address
@@ -39,3 +39,10 @@ class UsageSummary(BaseModel):
     runtime_seconds: int | None
     session_since: datetime | None = None
     days: list[UsageDay]
+
+
+class AnalyticsResult(BaseModel):
+    """Describe one completed import and public-summary publication cycle."""
+
+    imported_records: int
+    summary: UsageSummary

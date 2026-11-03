@@ -4,14 +4,14 @@ import logging
 import os
 import time
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from busy_profit.usage_application import import_usage_logs
-from busy_profit.usage_storage import UsageRepository
-from busy_profit.usage_infographic import publish_usage_infographic
+from busy_profit.analytics import LABELS, PROFILE
+from request_analytics import UsageRepository, publish_usage_infographic, refresh_usage
 
 
 class AnalyticsSettings(BaseSettings):
@@ -36,11 +36,20 @@ def main() -> None:
     while True:
         repository = None
         try:
-            repository = UsageRepository(settings.database_path)
-            count = import_usage_logs(settings.log_directory, repository)
-            repository.prune(datetime.now(UTC), settings.retention_days)
-            publish_usage_infographic(repository.weekly_summary(datetime.now(UTC)), settings.publish_directory)
-            logging.info("usage_import_completed records=%s", count)
+            repository = UsageRepository(settings.database_path, PROFILE.session_endpoint)
+            result = refresh_usage(
+                directory=settings.log_directory,
+                store=repository,
+                profile=PROFILE,
+                publisher=partial(
+                    publish_usage_infographic,
+                    directory=settings.publish_directory,
+                    labels=LABELS,
+                ),
+                now=datetime.now(UTC),
+                retention_days=settings.retention_days,
+            )
+            logging.info("usage_import_completed records=%s", result.imported_records)
         except Exception as error:
             logging.error("usage_import_failed error=%s", type(error).__name__)
         finally:

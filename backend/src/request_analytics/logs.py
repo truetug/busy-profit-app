@@ -18,12 +18,16 @@ class LogCheckpoints(Protocol):
         ...
 
 
-def read_log_batches(directory: Path, checkpoints: LogCheckpoints) -> Iterator[tuple[str, int, list[bytes]]]:
+def read_log_batches(
+    directory: Path,
+    checkpoints: LogCheckpoints,
+    pattern: str = "*.json",
+) -> Iterator[tuple[str, int, list[bytes]]]:
     """Yield bounded batches and stop before incomplete records at the file tail.
 
     Caddy must use uncompressed rename rotation so inode checkpoints stay valid.
     """
-    paths = sorted(directory.glob("busy-profit-access*.json"), key=lambda path: path.stat().st_mtime_ns)
+    paths = sorted(directory.glob(pattern), key=lambda path: path.stat().st_mtime_ns)
     for path in paths:
         try:
             with path.open("rb") as source:
