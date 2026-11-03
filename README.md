@@ -4,6 +4,8 @@ BUSY Profit shows lifetime sales, days since launch and the latest eight days on
 
 ## Screenshots
 
+Both charts use a light-green-to-red vertical gradient over a subtle gray background.
+
 Sales feeds require a private PIN. After installation, open the app settings in the Bar web interface, enter **PIN**, and restart the app. The PIN is not included in this repository or release package. Public screenshots use demonstration data.
 
 The app sends the Bar's hardware UID in `X-Busy-Hardware-ID` for private usage statistics. The server records request counts and source IP history; it does not collect account email. Hardware IDs are informational, not proof of identity or authorization.

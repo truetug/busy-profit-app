@@ -1,17 +1,17 @@
 import { generateXpm2 } from "@busy-app/busy-lib";
 
 const EMPTY = ".";
+const BACKGROUND = "#202020";
 const COLORS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const SALES_COLOR_LEVELS = 30;
 export const SALES_ERROR_COLOR = "#FF3838FF";
 
-/** Maps low sales to green and high sales to red for the history screens. */
-function colorForValue(value: number, max: number): string {
-  const ratio = max === 0 ? 0 : Math.min(1, value / max);
+/** Maps vertical position from a light-green baseline to a red chart ceiling. */
+function colorForRow(y: number, height: number): string {
+  const ratio = height <= 1 ? 0 : (height - 1 - y) / (height - 1);
   const strength = Math.round(ratio * (SALES_COLOR_LEVELS - 1)) / (SALES_COLOR_LEVELS - 1);
-  const red = Math.round(51 + strength * 204);
-  const green = Math.round(204 - strength * 168);
-  return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}44`;
+  const channels = [144 + strength * 111, 232 - strength * 187, 154 - strength * 119];
+  return `#${channels.map((channel) => Math.round(channel).toString(16).padStart(2, "0")).join("")}`;
 }
 
 /** Scales day values into icon heights while preserving a one-pixel zero baseline. */
@@ -34,58 +34,48 @@ export function interpolateBarHeights(from: number[], to: number[], steps: numbe
   );
 }
 
-/** Builds a transparent bar-chart bitmap from raw sales values. */
+/** Builds a subtly backed bar-chart bitmap from raw sales values. */
 export function dailySalesIcon(values: number[], width: number, height: number): string {
   return dailySalesIconFromHeights(dailySalesHeights(values, height), width, height);
 }
 
 /** Builds the icon bitmap from pre-scaled heights, used for frame-by-frame transitions. */
 export function dailySalesIconFromHeights(heights: number[], width: number, height: number): string {
-  const grid = Array.from({ length: height }, () => Array<string>(width).fill(EMPTY));
-  const palette: Record<string, string> = { [EMPTY]: "None" };
-
-  heights.forEach((barHeight, index) => {
-    const symbol = COLORS[index % COLORS.length]!;
-    const normalized = barHeight <= 1 ? 0 : (barHeight - 1) / Math.max(1, height - 1);
-    const red = Math.round(35 + normalized * 220);
-    const green = Math.round(175 - normalized * 130);
-    const blue = Math.round(75 - normalized * 40);
-    palette[symbol] = `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}${blue.toString(16).padStart(2, "0")}`;
-    const start = Math.floor((index * width) / heights.length);
-    const end = Math.floor(((index + 1) * width) / heights.length);
-
-    for (let y = height - barHeight; y < height; y++) {
-      for (let x = start; x < end; x++) grid[y]![x] = symbol;
-    }
-  });
-
-  return generateXpm2({ palette, grid: grid.map((line) => line.join("")) });
+  return gradientChart(heights, width, height);
 }
 
 /** Builds an edge-to-edge historical bitmap, highlighting the selected day's complete bar in white. */
 export function historicalSalesIcon(values: number[], width: number, height: number, selectedIndex = -1): string {
-  const grid = Array.from({ length: height }, () => Array<string>(width).fill(EMPTY));
-  const palette: Record<string, string> = { [EMPTY]: "None" };
-  const symbols = new Map<string, string>();
   const max = Math.max(1, ...values);
+  const heights = values.map((value, index) => Math.max(
+    index === selectedIndex ? 1 : 0,
+    Math.round((value / max) * height),
+  ));
+  return gradientChart(heights, width, height, selectedIndex);
+}
 
-  values.forEach((value, index) => {
-    const color = index === selectedIndex ? "#FFFFFFFF" : colorForValue(value, max);
+/** Shares a row-based gradient palette across all bars without adding UI elements. */
+function gradientChart(heights: number[], width: number, height: number, selectedIndex = -1): string {
+  const grid = Array.from({ length: height }, () => Array<string>(width).fill(EMPTY));
+  const palette: Record<string, string> = { [EMPTY]: BACKGROUND };
+  const symbols = new Map<string, string>();
+  for (let y = 0; y < height; y++) {
+    const color = colorForRow(y, height);
     let symbol = symbols.get(color);
     if (!symbol) {
       symbol = COLORS[symbols.size]!;
       symbols.set(color, symbol);
       palette[symbol] = color;
     }
-    const barHeight = index === selectedIndex
-      ? Math.max(1, Math.round((value / max) * height))
-      : Math.round((value / max) * height);
-    const start = Math.floor((index * width) / values.length);
-    const end = Math.floor(((index + 1) * width) / values.length);
-    for (let y = height - barHeight; y < height; y++) {
-      for (let x = start; x < end; x++) grid[y]![x] = symbol;
-    }
-  });
+    heights.forEach((barHeight, index) => {
+      if (height - y > barHeight) return;
+      const start = Math.floor((index * width) / heights.length);
+      const end = Math.floor(((index + 1) * width) / heights.length);
+      const pixel = index === selectedIndex ? "_" : symbol;
+      if (index === selectedIndex) palette._ = "#FFFFFF";
+      for (let x = start; x < end; x++) grid[y]![x] = pixel;
+    });
+  }
 
   return generateXpm2({ palette, grid: grid.map((line) => line.join("")) });
 }

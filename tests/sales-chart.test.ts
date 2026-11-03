@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { dailySalesIcon, dailySalesHeights, historicalSalesIcon, interpolateBarHeights, SALES_ERROR_COLOR } from "../src/screens/sales-chart.ts";
+import { dailySalesIcon, dailySalesIconFromHeights, dailySalesHeights, historicalSalesIcon, interpolateBarHeights, SALES_ERROR_COLOR } from "../src/screens/sales-chart.ts";
 import { SALES_CHART_ICON_ID, SALES_LOADING_ICON_ID } from "../src/screens/sales-ids.ts";
 
 /** Reads the bitmap's declared dimensions and pixel rows for focused rendering assertions. */
@@ -28,15 +28,15 @@ test("scales four daily sales columns into the 16x16 icon slot", () => {
 test("draws adjoining icon bars and uses green-to-red colors", () => {
   const bitmap = readBitmap(dailySalesIcon([5, 10, 15, 20], 16, 16));
 
-  assert.equal(bitmap.rows.at(-1), "aaaabbbbccccdddd");
-  assert.ok(bitmap.palette.some((entry) => entry.includes("#23af4b")));
+  assert.equal(bitmap.rows.at(-1), "p".repeat(16));
+  assert.ok(bitmap.palette.some((entry) => entry.includes("#90e89a")));
   assert.ok(bitmap.palette.some((entry) => entry.includes("#ff2d23")));
   assert.ok(bitmap.palette.every((entry) => !/#(?:[\da-f]{8}|[\da-f]{12}|[\da-f]{16})$/i.test(entry)));
 });
 
 test("renders eight adjacent two-pixel bars in the home icon", () => {
   const bitmap = readBitmap(dailySalesIcon(Array(8).fill(5), 16, 16));
-  assert.equal(bitmap.rows.at(-1), "aabbccddeeffgghh");
+  assert.equal(bitmap.rows.at(-1), "p".repeat(16));
 });
 
 test("scales equal non-zero sales without producing invalid heights", () => {
@@ -57,7 +57,7 @@ test("uses separate element IDs for the loading animation and bitmap chart", () 
 test("fills historical chart columns edge-to-edge and uses letter-only XPM symbols", () => {
   const bitmap = readBitmap(historicalSalesIcon([5, 10, 15, 20], 16, 9));
 
-  assert.equal(bitmap.rows.at(-1), "aaaabbbbccccdddd");
+  assert.equal(bitmap.rows.at(-1), "i".repeat(16));
   assert.ok(bitmap.palette.every((entry) => !/[0-9] c /.test(entry)));
 });
 
@@ -67,7 +67,7 @@ test("renders exactly two pixels per day across the 36-day chart", () => {
   assert.equal(row.length, 72);
   for (let index = 0; index < 36; index++) {
     assert.equal(row[index * 2], row[index * 2 + 1]);
-    if (index > 0) assert.notEqual(row[index * 2], row[index * 2 - 1]);
+    if (index < 35) assert.equal(row[index * 2], row[0]);
   }
 });
 
@@ -110,4 +110,26 @@ test("ships a native transparent 16x16 looping sales loading icon", () => {
 
 test("uses the Bar API's required RGBA format for error text", () => {
   assert.match(SALES_ERROR_COLOR, /^#[\da-f]{8}$/i);
+});
+
+test("uses the same vertical gradient for every bar and both chart sizes", () => {
+  for (const bitmap of [
+    readBitmap(dailySalesIcon([0, 5, 10], 15, 16)),
+    readBitmap(historicalSalesIcon([0, 5, 10], 15, 9)),
+  ]) {
+    const colors = new Map(bitmap.palette.map((entry) => [entry[0], entry.split(" c ")[1]]));
+    const bottom = bitmap.rows.at(-1)!;
+    assert.equal(colors.get(bottom[7]), "#90e89a");
+    assert.equal(colors.get(bottom[12]), "#90e89a");
+    assert.equal(colors.get(bitmap.rows[0]![12]), "#ff2d23");
+    assert.equal(colors.get(bitmap.rows[0]![0]), "#202020");
+    assert.notEqual(bitmap.rows.at(-2)![12], bottom[12]);
+    assert.ok(bitmap.palette.length <= 32);
+  }
+});
+
+test("clamps transition heights to the chart without invalid pixel rows", () => {
+  const bitmap = readBitmap(dailySalesIconFromHeights([-1, 0, 30], 6, 16));
+  assert.equal(bitmap.rows.length, 16);
+  assert.ok(bitmap.rows.every((row) => row.length === 6 && row.slice(0, 4) === "...."));
 });

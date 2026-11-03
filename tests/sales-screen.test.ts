@@ -71,7 +71,7 @@ test("renders lifetime sales, selling days, and an eight-column icon", () => {
   assert.equal(elements.find((item) => item.id === "sales-days")?.font, "tiny");
   assert.equal(elements.find((item) => item.children?.some((child) => child.id === "sales-days"))?.justify, "between");
   assert.equal(elements.find((item) => item.id === "sales-mark")?.type, "xpmbitmap");
-  assert.match(elements.find((item) => item.id === "sales-mark")?.data ?? "", /16 16 9 1/);
+  assert.match(elements.find((item) => item.id === "sales-mark")?.data ?? "", /16 16 17 1/);
   assert.ok(elements.find((item) => item.id === "sales-info")?.text);
   assert.equal(elements.find((item) => item.id === "sales-info")?.dy, 0);
   const headlineColumn = elements.find((item) => item.children?.some((child) => child.id === "sales-info"));
