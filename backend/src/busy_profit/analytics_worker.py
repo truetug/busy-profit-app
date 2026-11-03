@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from busy_profit.usage_application import import_usage_logs
 from busy_profit.usage_storage import UsageRepository
+from busy_profit.usage_infographic import publish_usage_infographic
 
 
 class AnalyticsSettings(BaseSettings):
@@ -21,6 +22,7 @@ class AnalyticsSettings(BaseSettings):
     database_path: Path = Path("/data/usage.sqlite3")
     interval_seconds: float = Field(default=3600, gt=0)
     retention_days: int = Field(default=90, ge=8)
+    publish_directory: Path = Path("/data/public")
 
 
 def main() -> None:
@@ -37,6 +39,7 @@ def main() -> None:
             repository = UsageRepository(settings.database_path)
             count = import_usage_logs(settings.log_directory, repository)
             repository.prune(datetime.now(UTC), settings.retention_days)
+            publish_usage_infographic(repository.weekly_summary(datetime.now(UTC)), settings.publish_directory)
             logging.info("usage_import_completed records=%s", count)
         except Exception as error:
             logging.error("usage_import_failed error=%s", type(error).__name__)

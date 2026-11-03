@@ -45,6 +45,8 @@ a:focus-visible { outline: 2px solid #e9b35c; outline-offset: 4px; }
 .copyright { display: inline-flex; align-items: center; height: 16px; padding: 0 6px; border-radius: 4px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: normal; }
 .copyright a { color: inherit; font-weight: inherit; }
 .copyright a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.usage { margin-top: 72px; }
+.usage img { width: 100%; height: auto; border: 0; border-radius: 20px; image-rendering: auto; }
 
 @media (max-width: 600px) {
   .topbar, .footer, .readme { width: calc(100% - 32px); }

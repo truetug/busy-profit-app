@@ -10,6 +10,10 @@ The original notification WAV files are in `assets/sounds`; run `sh tools/prepar
 
 ## Private usage analytics
 
+After each hourly import the worker atomically publishes `/usage.svg` and `/usage-mobile.svg` for the landing. These contain aggregates only. The seven-day window is seven UTC calendar days including partial today. Active bars are distinct hardware IDs with successful requests; new bars were first seen in that window; returning bars were seen earlier; regular bars were active on at least three distinct days. Days before identified collection began are missing, not zero.
+
+App 0.8.7 adds a session ID and cumulative uptime/detail-open counters to existing current-feed requests. `usage_sessions` stores maxima to prevent retries and reordered polls from inflating metrics; `usage_daily` stores increments attributed to the UTC observation day. Starts count the first successfully observed snapshot per session. Runtime excludes an unreported final interval, usually up to one poll; detail opens occurring after the final snapshot may also be missing. Session metrics show their collection start date and are not inferred from older-feed downloads. A small interval crossing midnight is attributed to its reporting day.
+
 The separate `analytics` Compose service imports Caddy JSON access logs immediately at startup and once an hour thereafter. Its read-only `/logs` mount points to `/srv/edge/logs`; `/data/usage.sqlite3` is private and never served by Caddy. No cloud credentials, PINs or emails are stored in SQLite. Source IPs come from Caddy's socket peer, not `X-Forwarded-For`. Hardware IDs are unverified client metadata.
 
 Tables: `devices` keeps first/last appearance and current IP; `usage_hourly` groups feed requests by UTC hour, hardware ID, endpoint and HTTP status; `device_ips` keeps counts and first/last appearance per IP; `ip_changes` records chronological transitions. Detailed aggregates and IP history expire after 90 days; device first/last appearance remains. Feed downloads do not imply that a particular screen was opened. Use `status = 200` to distinguish successful usage from rejected requests.

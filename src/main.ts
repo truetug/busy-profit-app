@@ -19,6 +19,7 @@ import { salesNotification } from "./model/sales-notification.ts";
 import { countdownIndicator } from "./countdown-indicator.ts";
 import { createEncoderDrawScheduler } from "./encoder-draw.ts";
 import { positionSalesDigits } from "./screens/sales-digits.ts";
+import { createUsageSession } from "./usage-session.ts";
 
 const APP = manifest.id;
 const CHART_TRANSITION_STEPS = 6;
@@ -27,6 +28,7 @@ const DISPLAY_REQUEST_TIMEOUT_MS = 8_000;
 const apiOrigin = /^https?:\/\//i.test(addr) ? addr : `http://${addr}`;
 const DISPLAY_DRAW_URL = `${apiOrigin.replace(/\/$/, "")}/api/display/draw`;
 const tasks = createTaskScope();
+const usageSession = createUsageSession();
 
 type Screen = SalesView;
 
@@ -237,7 +239,7 @@ async function refresh(): Promise<void> {
   try {
     const previous = count;
     const previousPoints = points;
-    const nextPoints = await fetchHistory("current", fetch, accessKey, hardwareId);
+    const nextPoints = await fetchHistory("current", fetch, accessKey, hardwareId, usageSession.snapshot());
     if (exiting) return;
     points = nextPoints;
     combinedPoints = mergeHistory(olderPoints, points);
@@ -334,6 +336,7 @@ export default function run(): void {
     if (action === "toggle-screen") {
       if (count === undefined) return;
       if (screen === "home") {
+        usageSession.enterDetails();
         screen = "days";
         selectedDay = SALES_HISTORY_DAYS - 1;
       } else {

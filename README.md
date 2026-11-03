@@ -8,6 +8,8 @@ Sales feeds require a private PIN. After installation, open the app settings in 
 
 The app sends the Bar's hardware UID in `X-Busy-Hardware-ID` for private usage statistics. The server records request counts and source IP history; it does not collect account email. Hardware IDs are informational, not proof of identity or authorization.
 
+Existing minute requests also report a session ID, cumulative runtime and detail-screen opens. The public community infographic contains aggregates only, refreshed hourly; it never exposes device IDs or IPs. Runtime and screen opens are observed at the last reported poll, so the final unreported interval is not included.
+
 ![Sales overview on BUSY Bar](screenshots/lifetime-summary.png)
 
 ![Daily sales chart on BUSY Bar](screenshots/daily-chart.png)

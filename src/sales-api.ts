@@ -1,4 +1,5 @@
 import { timestamp, type Point } from "./model/sales.ts";
+import type { UsageSnapshot } from "./usage-session.ts";
 
 const FEED_BASE_URL = "https://profit.busy.truetug.info";
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -10,7 +11,7 @@ export class AccessKeyRequired extends Error {
 }
 
 /** Downloads a protected rolling CSV and validates every usable snapshot. */
-export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetch, accessKey = "", hardwareId = ""): Promise<Point[]> {
+export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetch, accessKey = "", hardwareId = "", usage?: UsageSnapshot): Promise<Point[]> {
   if (!accessKey.trim()) throw new AccessKeyRequired();
   const url = `${FEED_BASE_URL}/${feed}.csv`;
   const startedAt = Date.now();
@@ -24,6 +25,11 @@ export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetc
           Accept: "text/csv", Authorization: `Bearer ${accessKey.trim()}`,
           ...(/^[0-9a-f]{24}$/i.test(hardwareId)
             ? { "X-Busy-Hardware-ID": hardwareId.toUpperCase() } : {}),
+          ...(usage && /^[a-z0-9-]{8,64}$/i.test(usage.id) ? {
+            "X-Busy-Session-ID": usage.id,
+            "X-Busy-Uptime-Seconds": String(usage.uptimeSeconds),
+            "X-Busy-Details-Count": String(usage.detailsCount),
+          } : {}),
         },
       });
       console.info(`busy-profit: response status=${response.status} after ${Date.now() - startedAt}ms`);
