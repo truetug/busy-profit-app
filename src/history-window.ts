@@ -25,7 +25,11 @@ export function archivedDays(points: Point[], end: Date): (number | null)[] {
 /** Loads only UTC months intersecting the local window plus its baseline. */
 export function createHistoryWindow(load: (month: string) => Promise<Point[]>) {
   const cache = new Map<string, Point[]>();
+  let cacheDay = "";
   return async (end: Date): Promise<Point[]> => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (cacheDay && cacheDay !== today) cache.delete(cacheDay.slice(0, 7));
+    cacheDay = today;
     const start = new Date(end);
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() - SALES_HISTORY_DAYS);
@@ -36,7 +40,7 @@ export function createHistoryWindow(load: (month: string) => Promise<Point[]>) {
       let rows = cache.get(month);
       if (!rows) rows = await load(month);
       cache.delete(month);
-      if (rows.length && month < new Date().toISOString().slice(0, 7)) cache.set(month, rows);
+      cache.set(month, rows);
       if (cache.size > 4) cache.delete(cache.keys().next().value!);
       points = mergeHistory(points, rows);
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
