@@ -3,6 +3,7 @@
 import json
 import logging
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Protocol
 
@@ -45,12 +46,14 @@ class SalesCollectorService:
         source: SalesSource,
         repository: HistoryRepository,
         publisher: HistoryPublisher,
+        refresh_archive: Callable[[datetime], None] | None = None,
     ) -> None:
         """Keep runtime policy and port implementations for repeated polling."""
         self._settings = settings
         self._source = source
         self._repository = repository
         self._publisher = publisher
+        self._refresh_archive = refresh_archive
 
     def poll_once(self) -> SalesObservation:
         """Fetch, validate, persist, and publish one current sales snapshot."""
@@ -62,6 +65,8 @@ class SalesCollectorService:
         )
         history = self._repository.save(point)
         self._publisher.publish(history)
+        if self._refresh_archive is not None:
+            self._refresh_archive(point.observed_at)
         LOG.info(
             json.dumps(
                 {

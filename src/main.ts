@@ -11,6 +11,7 @@ import { dailySalesHeights, interpolateBarHeights } from "./screens/sales-chart.
 import { SALES_LOADING_ICON_ID } from "./screens/sales-ids.ts";
 import { changedElements, clampNegativeY, clearBeforeFrameChange, clearDisplay, fetchWithTimeout, invalidateDrawnElements } from "./display-api.ts";
 import { moveDayCursor } from "./model/navigation.ts";
+import { archivedDays, createHistoryWindow } from "./history-window.ts";
 import { HOME_HISTORY_DAYS, SALES_HISTORY_DAYS } from "./model/sales.ts";
 import { createTaskScope } from "./task-scope.ts";
 import { createOlderFeedLoader } from "./older-feed.ts";
@@ -40,6 +41,12 @@ let olderLoadedDay: string | undefined;
 let olderError = false;
 let screen: Screen = "home";
 let selectedDay = SALES_HISTORY_DAYS - 1;
+let historyOffset = 0;
+let historyPoints: Point[] = [];
+let historyValues: (number | null)[] = [];
+let historyLoading = false;
+let historyGeneration = 0;
+const loadHistoryWindow = createHistoryWindow((month) => fetchHistory(`archive/${month}`, fetch, accessKey));
 let busy = false;
 let loadError: string | undefined;
 let wifiOffline = false;
@@ -98,7 +105,9 @@ async function draw(): Promise<void> {
       pendingDraw = false;
       const now = new Date();
       const dailyReady = screen === "days" && olderLoadedDay && notificationCount === undefined;
-      const screenElements = dailyReady ? dailyGraphElements(combinedPoints, now, selectedDay) : render(renderSalesScreen({
+      const historyEnd = new Date(now);
+      historyEnd.setDate(historyEnd.getDate() + historyOffset);
+      const screenElements = dailyReady ? dailyGraphElements(historyOffset ? historyPoints : combinedPoints, historyEnd, selectedDay, historyOffset ? historyValues : undefined) : render(renderSalesScreen({
         screen,
         now,
         count,
@@ -339,15 +348,38 @@ export default function run(): void {
         usageSession.enterDetails();
         screen = "days";
         selectedDay = SALES_HISTORY_DAYS - 1;
+        historyOffset = 0;
       } else {
         screen = "home";
       }
+      historyGeneration++;
       void draw();
       return;
     }
     if (action !== "next-day" && action !== "previous-day") return;
     if (screen === "home") return;
     const delta = encoderMovement(event);
+    if (historyLoading) return;
+    if ((selectedDay === 0 && delta < 0) || (selectedDay === SALES_HISTORY_DAYS - 1 && delta > 0 && historyOffset < 0)) {
+      const nextOffset = historyOffset + Math.sign(delta);
+      const end = new Date();
+      end.setDate(end.getDate() + nextOffset);
+      const first = new Date(end);
+      first.setDate(first.getDate() - (SALES_HISTORY_DAYS - 1));
+      if (first < new Date(2026, 6, 14)) return;
+      const generation = historyGeneration;
+      historyLoading = true;
+      void (nextOffset ? loadHistoryWindow(end) : Promise.resolve([])).then((loaded) => {
+        if (generation !== historyGeneration || screen !== "days") return;
+        historyPoints = mergeHistory(loaded, points.slice(-1));
+        historyValues = archivedDays(historyPoints, end);
+        historyOffset = nextOffset;
+        encoderDraw.request();
+      }).catch((error) => console.warn("busy-profit: archive unavailable", String(error))).finally(() => {
+        historyLoading = false;
+      });
+      return;
+    }
     const nextDay = moveDayCursor(selectedDay, delta, SALES_HISTORY_DAYS);
     if (nextDay === selectedDay) return;
     selectedDay = nextDay;

@@ -45,16 +45,19 @@ function dailyChart(values: number[]): string {
 }
 
 /** Places daily-chart elements directly, avoiding layout work on every encoder step. */
-export function dailyGraphElements(points: Point[], now: Date, selectedDay: number): ReturnType<typeof render> {
+export function dailyGraphElements(points: Point[], now: Date, selectedDay: number, archive?: (number | null)[]): ReturnType<typeof render> {
   prepareDailyGraph(points, now);
   const index = Math.min(Math.max(selectedDay, 0), cachedDays.length - 1);
   const selected = cachedDays[index]!;
   const date = new Date(selected.atMs);
-  const height = Math.max(1, Math.round(selected.count / cachedMaximum * 9));
+  const values = archive ? archive.map((value) => value ?? 0) : cachedDays.map((day) => day.count);
+  const count = archive ? archive[index] : selected.count;
+  const maximum = archive ? Math.max(1, ...values) : cachedMaximum;
+  const height = Math.max(1, Math.round((count ?? 0) / maximum * 9));
   return [
-    { type: "text", id: "sales-selected-day", x: 0, y: 0, text: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}  ${selected.count}`, font: "small", color: WHITE },
+    { type: "text", id: "sales-selected-day", x: 0, y: 0, text: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}  ${count ?? "-"}`, font: "small", color: WHITE },
     { type: "text", id: "sales-history-label", x: SCREEN.width - 1, y: 0, align: "top_right", text: String(sellingDays(date) + 1), font: "small", color: MUTED },
-    { type: "xpmbitmap", id: "sales-chart", x: 0, y: 7, data: dailyChart(cachedDays.map((day) => day.count)), opacity: 100, z_index: 0 },
+    { type: "xpmbitmap", id: "sales-chart", x: 0, y: 7, data: dailyChart(values), opacity: 100, z_index: 0 },
     { type: "rectangle", id: "sales-day-marker", x: index * 2, y: 16 - height, width: 2, height, fill: "solid", fill_colors: [WHITE], border_width: 0, z_index: 7 },
     { type: "xpmbitmap", id: "sales-weekends", x: 0, y: 15, data: cachedWeekends, opacity: 100, z_index: 6 },
   ];

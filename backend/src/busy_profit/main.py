@@ -6,6 +6,7 @@ from pathlib import Path
 from busy_profit.application import SalesCollectorService
 from busy_profit.csv_storage import CsvHistoryRepository, DisplayHistoryCsvPublisher
 from busy_profit.landing import LandingPublisher
+from busy_profit.monthly_archive import MonthlyArchivePublisher
 from busy_profit.settings import Settings
 from busy_profit.shopify import ShopifyStatsClient
 
@@ -25,6 +26,7 @@ def main() -> None:
         settings=settings,
         source=ShopifyStatsClient(settings),
         repository=CsvHistoryRepository(settings.history_path),
+        refresh_archive=MonthlyArchivePublisher(settings.history_path, settings.publish_path).refresh,
         publisher=DisplayHistoryCsvPublisher(
             settings.publish_path,
             settings.display_timezone,

@@ -3,7 +3,7 @@ import type { UsageSnapshot } from "./usage-session.ts";
 
 const FEED_BASE_URL = "https://profit.busy.truetug.info";
 const REQUEST_TIMEOUT_MS = 20_000;
-export type SalesFeed = "current" | "older";
+export type SalesFeed = "current" | "older" | `archive/${string}`;
 
 /** Distinguishes missing or rejected credentials from transient network failures. */
 export class AccessKeyRequired extends Error {
@@ -34,6 +34,7 @@ export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetc
       });
       console.info(`busy-profit: response status=${response.status} after ${Date.now() - startedAt}ms`);
       if (response.status === 401 || response.status === 403) throw new AccessKeyRequired();
+      if (response.status === 404 && feed.startsWith("archive/")) return "observed_at,bars_sold";
       if (!response.ok) throw new Error(`Sales history returned HTTP ${response.status}`);
       const body = await response.text();
       console.info(`busy-profit: body chars=${body.length} after ${Date.now() - startedAt}ms`);
@@ -67,7 +68,7 @@ export async function fetchHistory(feed: SalesFeed, fetcher: typeof fetch = fetc
       points.push({ at, count, atMs });
     }
   }
-  if (points.length === 0 && !(feed === "older" && rows.length === 1)) {
+  if (points.length === 0 && !(feed !== "current" && rows.length === 1)) {
     throw new Error("Sales history contains no valid observations");
   }
   return points;
