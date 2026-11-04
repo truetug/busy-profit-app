@@ -1,5 +1,5 @@
 import { column, generateXpm2, render, row, SCREEN, type Node } from "@busy-app/busy-lib";
-import { dailySales, increments, HOME_HISTORY_DAYS, type DaySales, type Point, type SalesView } from "../model/sales.ts";
+import { dailySales, increments, sellingDays, HOME_HISTORY_DAYS, type DaySales, type Point, type SalesView } from "../model/sales.ts";
 import { formatDateTime } from "../../shared/datetime.ts";
 import { dailySalesIcon, dailySalesIconFromHeights, historicalSalesIcon, SALES_ERROR_COLOR } from "./sales-chart.ts";
 import { salesHeadline } from "./sales-format.ts";
@@ -53,7 +53,7 @@ export function dailyGraphElements(points: Point[], now: Date, selectedDay: numb
   const height = Math.max(1, Math.round(selected.count / cachedMaximum * 9));
   return [
     { type: "text", id: "sales-selected-day", x: 0, y: 0, text: `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}  ${selected.count}`, font: "small", color: WHITE },
-    { type: "text", id: "sales-history-label", x: SCREEN.width - 1, y: 0, align: "top_right", text: "36D", font: "small", color: MUTED },
+    { type: "text", id: "sales-history-label", x: SCREEN.width - 1, y: 0, align: "top_right", text: String(sellingDays(date) + 1), font: "small", color: MUTED },
     { type: "xpmbitmap", id: "sales-chart", x: 0, y: 7, data: dailyChart(cachedDays.map((day) => day.count)), opacity: 100, z_index: 0 },
     { type: "rectangle", id: "sales-day-marker", x: index * 2, y: 16 - height, width: 2, height, fill: "solid", fill_colors: [WHITE], border_width: 0, z_index: 7 },
     { type: "xpmbitmap", id: "sales-weekends", x: 0, y: 15, data: cachedWeekends, opacity: 100, z_index: 6 },

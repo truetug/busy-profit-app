@@ -1,7 +1,7 @@
 import { generateXpm2 } from "@busy-app/busy-lib";
 
 const EMPTY = ".";
-const BACKGROUND = "#202020";
+const BACKGROUND = "#2c2c2c";
 const COLORS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const SALES_COLOR_LEVELS = 30;
 export const SALES_ERROR_COLOR = "#FF3838FF";
@@ -51,13 +51,13 @@ export function historicalSalesIcon(values: number[], width: number, height: num
     index === selectedIndex ? 1 : 0,
     Math.round((value / max) * height),
   ));
-  return gradientChart(heights, width, height, selectedIndex);
+  return gradientChart(heights, width, height, selectedIndex, "None");
 }
 
 /** Shares a row-based gradient palette across all bars without adding UI elements. */
-function gradientChart(heights: number[], width: number, height: number, selectedIndex = -1): string {
+function gradientChart(heights: number[], width: number, height: number, selectedIndex = -1, background = BACKGROUND): string {
   const grid = Array.from({ length: height }, () => Array<string>(width).fill(EMPTY));
-  const palette: Record<string, string> = { [EMPTY]: BACKGROUND };
+  const palette: Record<string, string> = { [EMPTY]: background };
   const symbols = new Map<string, string>();
   for (let y = 0; y < height; y++) {
     const color = colorForRow(y, height);

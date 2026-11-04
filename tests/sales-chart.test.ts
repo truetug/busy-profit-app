@@ -100,12 +100,12 @@ test("keeps zero-sales icon columns at a one-pixel baseline", () => {
   assert.deepEqual([1, 5, 9, 13].map((x) => bitmap.rows.filter((row) => row[x] !== ".").length), [1, 1, 1, 1]);
 });
 
-test("ships a native transparent 16x16 looping sales loading icon", () => {
+test("ships a native 16x16 looping sales loading icon at 30 fps", () => {
   const animation = readFileSync(new URL("../src/animations/sales_loading.anim", import.meta.url));
 
   assert.equal(animation.subarray(0, 8).toString(), "bicycle1");
   assert.deepEqual([...animation.subarray(9, 12)], [16, 16, 2]);
-  assert.equal(animation[16], 3);
+  assert.equal(animation[16], 30);
 });
 
 test("uses the Bar API's required RGBA format for error text", () => {
@@ -122,7 +122,7 @@ test("uses the same vertical gradient for every bar and both chart sizes", () =>
     assert.equal(colors.get(bottom[7]), "#90e89a");
     assert.equal(colors.get(bottom[12]), "#90e89a");
     assert.equal(colors.get(bitmap.rows[0]![12]), "#ff2d23");
-    assert.equal(colors.get(bitmap.rows[0]![0]), "#202020");
+    assert.equal(colors.get(bitmap.rows[0]![0]), bitmap.height === 16 ? "#2c2c2c" : "None");
     assert.notEqual(bitmap.rows.at(-2)![12], bottom[12]);
     assert.ok(bitmap.palette.length <= 32);
   }

@@ -83,7 +83,9 @@ test("renders the full-width 36-day chart with selected date and count", () => {
   const elements = dailyGraphElements(points, new Date(2026, 9, 30, 12), 35);
 
   assert.equal(elements.find((item) => item.id === "sales-selected-day" && item.type === "text")?.text, "30.10  20");
-  assert.equal(elements.find((item) => item.id === "sales-history-label" && item.type === "text")?.text, "36D");
+  assert.equal(elements.find((item) => item.id === "sales-history-label" && item.type === "text")?.text, "109");
+  const previous = dailyGraphElements(points, new Date(2026, 9, 30, 12), 34);
+  assert.equal(previous.find((item) => item.id === "sales-history-label" && item.type === "text")?.text, "108");
   assert.equal(elements.find((item) => item.id === "sales-chart")?.type, "xpmbitmap");
   assert.equal(elements.find((item) => item.id === "sales-day-marker")?.type, "rectangle");
   assert.equal(elements.find((item) => item.id === "sales-day-marker")?.x, 70);
@@ -115,7 +117,7 @@ test("places the day chart directly and only changes its label and marker on scr
   const first = dailyGraphElements(points, new Date(2026, 9, 30, 12), 34);
   const second = dailyGraphElements(points, new Date(2026, 9, 30, 12), 35);
   const changed = second.filter((element, index) => JSON.stringify(element) !== JSON.stringify(first[index]));
-  assert.deepEqual(changed.map((element) => element.id), ["sales-selected-day", "sales-day-marker"]);
+  assert.deepEqual(changed.map((element) => element.id), ["sales-selected-day", "sales-history-label", "sales-day-marker"]);
   assert.equal(second.find((element) => element.id === "sales-weekends")?.y, 15);
   assert.equal(second.find((element) => element.id === "sales-day-marker")?.x, 70);
 });
