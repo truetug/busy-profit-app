@@ -59,7 +59,7 @@ class SlackClient:
 
         Error messages intentionally omit raw bodies, tokens and response URLs.
         """
-        if method not in {"oauth.v2.access", "users.info", "auth.test", "files.getUploadURLExternal", "files.completeUploadExternal"}:
+        if method not in {"oauth.v2.access", "users.info", "auth.test", "files.getUploadURLExternal", "files.completeUploadExternal", "chat.postEphemeral"}:
             raise ValueError("Unsupported Slack method")
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         if token:

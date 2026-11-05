@@ -90,8 +90,12 @@ class SlackReports:
                 else:
                     self._files.move_to_end(key)
             stage = "delivery"
-            self._respond(response_url, {"response_type": "ephemeral", "text": f"{title} · {timezone}",
-                "blocks": [{"type": "image", "slack_file": {"id": file_id}, "alt_text": f"{title} · {timezone}"}]})
+            self._client.call("chat.postEphemeral", {
+                "channel": fields["channel_id"],
+                "user": fields["user_id"],
+                "text": f"{title} · {timezone}",
+                "blocks": json.dumps([{"type": "image", "slack_file": {"id": file_id}, "alt_text": f"{title} · {timezone}"}]),
+            }, token)
         except Exception as error:
             logging.getLogger("busy_profit.slack").warning("Report failed stage=%s error=%s", stage, type(error).__name__)
             self._respond(response_url, {"response_type": "ephemeral", "text":
