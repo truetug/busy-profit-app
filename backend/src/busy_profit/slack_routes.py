@@ -2,7 +2,6 @@
 
 import time
 from collections.abc import Callable
-from hmac import compare_digest
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Cookie, Header, HTTPException, Request
@@ -24,18 +23,16 @@ def slack_router(
 ) -> APIRouter:
     """Bind Slack transports to application services without accessing tables.
 
-    Installation initiation requires a separate operator bearer credential.
+    Public initiation is browser-bound; only the configured workspace is accepted.
     """
     router = APIRouter()
 
     @router.get("/slack/oauth/start")
-    def start(authorization: str = Header(default="")) -> RedirectResponse:
-        """Create browser-bound installation state for an authorized operator.
+    def start() -> RedirectResponse:
+        """Create browser-bound state without exposing an operator secret.
 
         The state cookie is secure, HTTP-only and limited to OAuth callbacks.
         """
-        if not installation_key or not compare_digest(authorization, "Bearer " + installation_key):
-            raise HTTPException(401, "Installation authorization required")
         state = storage.issue_state(clock())
         query = urlencode({
             "client_id": client_id, "redirect_uri": redirect_uri, "state": state,

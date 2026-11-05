@@ -13,8 +13,8 @@ from busy_profit.slack_oauth import InstallationTokens, SlackOAuthService
 from busy_profit.slack_routes import slack_router
 
 
-def test_signed_command_is_private_and_installation_is_operator_only(tmp_path) -> None:
-    """Protect installation initiation and return personal codes ephemerally.
+def test_signed_command_is_private_and_installation_is_browser_bound(tmp_path) -> None:
+    """Bind installation to a secure cookie and return personal codes ephemerally.
 
     Invalid command signatures must never reach access issuance.
     """
@@ -27,8 +27,7 @@ def test_signed_command_is_private_and_installation_is_operator_only(tmp_path) -
     body = b"team_id=T1&user_id=U1&command=%2Fprofit&text=access"
     signature = "v0=" + hmac.new(b"secret", b"v0:1000:" + body, hashlib.sha256).hexdigest()
     with TestClient(app, base_url="https://example.com") as client:
-        assert client.get("/slack/oauth/start").status_code == 401
-        start = client.get("/slack/oauth/start", headers={"Authorization": "Bearer operator"}, follow_redirects=False)
+        start = client.get("/slack/oauth/start", follow_redirects=False)
         assert start.status_code == 303
         assert "HttpOnly" in start.headers["set-cookie"]
         assert client.post("/slack/commands", content=body).status_code == 400
