@@ -1,0 +1,52 @@
+"""Render private Slack chart files in the BUSY Bar visual language."""
+
+from datetime import date
+from io import BytesIO
+
+from PIL import Image, ImageDraw, ImageFont
+
+
+def render_chart(
+    title: str,
+    timezone: str,
+    labels: list[str],
+    values: list[int | None],
+) -> bytes:
+    """Draw adjoining gradient columns with explicit unknown-data markers.
+
+    Return PNG bytes for authenticated Slack file upload, never a public URL.
+    """
+    if not values or len(values) != len(labels) or len(values) > 366:
+        raise ValueError("Invalid chart series")
+    image = Image.new("RGB", (1200, 640), "#141414")
+    draw = ImageDraw.Draw(image)
+    title_font = ImageFont.load_default(size=30)
+    font = ImageFont.load_default(size=20)
+    draw.text((48, 28), title, fill="white", font=title_font)
+    draw.text((48, 72), f"Timezone: {timezone}", fill="#b0b0b0", font=font)
+    known = [value for value in values if value is not None]
+    if any(value < 0 for value in known):
+        raise ValueError("Sales cannot be negative")
+    maximum = max(known, default=0)
+    left, right, top, bottom = 48, 1152, 130, 520
+    for index, value in enumerate(values):
+        x0 = left + index * (right-left) // len(values)
+        x1 = left + (index+1) * (right-left) // len(values) - 1
+        if value is None:
+            draw.line((x0, bottom, x1, bottom), fill="#606060")
+        else:
+            height = round(value / maximum * (bottom-top)) if maximum else 0
+            for y in range(bottom-height, bottom):
+                ratio = (bottom-1-y) / (bottom-top-1)
+                strength = round(ratio * 29) / 29
+                color = (round(144+111*strength), round(232-187*strength), round(154-119*strength))
+                draw.line((x0, y, x1, y), fill=color)
+        if index % max(1, (len(values)+11)//12) == 0:
+            draw.text((x0, bottom+14), labels[index], fill="#b0b0b0", font=font)
+    total = sum(known)
+    draw.text((48, 590), f"Total: {total:,}    Max: {maximum:,}", fill="white", font=font)
+    if len(known) != len(values):
+        draw.text((650, 590), "Gray: incomplete data", fill="#b0b0b0", font=font)
+    output = BytesIO()
+    image.save(output, format="PNG", optimize=True)
+    return output.getvalue()

@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Cookie, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Cookie, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from busy_profit.oauth_storage import OAuthStorage
@@ -20,6 +20,7 @@ def slack_router(
     redirect_uri: str,
     installation_key: str,
     clock: Callable[[], int] = lambda: int(time.time()),
+    reports: Callable[[dict[str, str]], None] | None = None,
 ) -> APIRouter:
     """Bind Slack transports to application services without accessing tables.
 
@@ -67,6 +68,7 @@ def slack_router(
     @router.post("/slack/commands")
     async def command(
         request: Request,
+        background_tasks: BackgroundTasks,
         x_slack_request_timestamp: str = Header(default=""),
         x_slack_signature: str = Header(default=""),
     ) -> dict[str, str]:
@@ -81,6 +83,12 @@ def slack_router(
                 raise HTTPException(413, "Command too large")
         from starlette.concurrency import run_in_threadpool
         try:
+            if reports is not None:
+                fields = await run_in_threadpool(access.verify, bytes(body),
+                    x_slack_request_timestamp, x_slack_signature, clock())
+                if fields.get("text", "").strip() != "access":
+                    background_tasks.add_task(reports, fields)
+                    return {"response_type": "ephemeral", "text": "Preparing your private report…"}
             code = await run_in_threadpool(access.execute, bytes(body),
                 x_slack_request_timestamp, x_slack_signature, clock())
         except PermissionError as error:

@@ -22,6 +22,16 @@ class SlackAccessService:
         self._eligible = eligible
 
     def execute(self, body: bytes, timestamp: str, signature: str, now: int) -> str:
+        """Issue a PIN after validating the signed command and employee.
+
+        Reuse the same identity policy as reporting requests.
+        """
+        fields = self.verify(body, timestamp, signature, now)
+        if fields.get("text", "").strip() != "access":
+            raise ValueError("Unsupported Slack command")
+        return self._access.issue(self._workspace, fields["user_id"])
+
+    def verify(self, body: bytes, timestamp: str, signature: str, now: int) -> dict[str, str]:
         """Verify the unmodified request body before parsing its command.
 
         Reject stale requests and never trust workspace or user IDs unsigned.
@@ -46,8 +56,8 @@ class SlackAccessService:
                 raise ValueError("Invalid Slack command")
             return values[0]
         user = field("user_id")
-        if field("team_id") != self._workspace or field("command") != "/profit" or field("text").strip() != "access":
+        if field("team_id") != self._workspace or field("command") != "/profit":
             raise ValueError("Unsupported Slack command")
         if not self._eligible(user):
             raise PermissionError("Access is limited to approved employees")
-        return self._access.issue(self._workspace, user)
+        return {key: field(key) for key in fields}

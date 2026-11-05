@@ -17,6 +17,7 @@ from busy_profit.slack_access import SlackAccessService
 from busy_profit.slack_client import SlackClient
 from busy_profit.slack_oauth import SlackOAuthService
 from busy_profit.slack_routes import slack_router
+from busy_profit.slack_reports import SlackReports
 from busy_profit.view_import import ArchiveImporter
 from busy_profit.view_service import ViewService
 from busy_profit.view_storage import ObservationIndex
@@ -96,7 +97,8 @@ def build_app():
     client = SlackClient(settings.slack_app_client_id, settings.slack_app_client_secret.get_secret_value(), settings.slack_redirect_uri)
     tokens = TokenManager(settings, storage, client)
     shared = shared_key_policy(settings.busy_profit_access_key.get_secret_value())
-    app = create_app(ViewService(index), lambda code: access.authorize(code) or shared(code))
+    views = ViewService(index)
+    app = create_app(views, lambda code: access.authorize(code) or shared(code))
 
     def eligible(user: str) -> bool:
         """Consult Slack membership using the current installation token.
@@ -110,6 +112,7 @@ def build_app():
         SlackOAuthService(storage, settings.slack_team_id, client.exchange), storage,
         settings.slack_app_client_id, settings.slack_redirect_uri,
         settings.profit_installation_key.get_secret_value(),
+        reports=SlackReports(client, tokens.get, views, index).execute,
     ))
 
     @asynccontextmanager
