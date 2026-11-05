@@ -1,6 +1,6 @@
 # BUSY Profit
 
-BUSY Profit shows lifetime sales, days since launch and the latest eight days on your BUSY Bar. Press Start for the 36-day chart and turn the encoder to select a day; gray pixels mark weekends and the selected day is white. New sales appear for ten seconds over an animated chart with a cash sound, or one applause when a hundred is crossed. The subtle right-edge indicator counts down to the next one-minute refresh from [profit.busy.truetug.info](https://profit.busy.truetug.info/); press Back to exit.
+BUSY Profit shows lifetime sales, days since launch and the latest eight days on your BUSY Bar. Press Start for a 36-day window, turn the encoder to scroll back to launch, and press the encoder to open the selected day's hourly chart. Gray pixels mark weekends and the selected column is white. Calendar values are calculated by the protected API in the Bar's timezone; the Bar keeps only compact daily values, not raw observations. New sales appear for ten seconds with a cash sound, or one applause when a hundred is crossed. The right-edge indicator counts down to the next one-minute refresh from [profit.busy.truetug.info](https://profit.busy.truetug.info/). Back returns from hours to days, then exits; Start switches between overview and history.
 
 ## Screenshots
 
