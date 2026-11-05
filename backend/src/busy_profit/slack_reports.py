@@ -2,6 +2,7 @@
 
 import calendar
 import json
+import logging
 from datetime import UTC, date, datetime
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -34,8 +35,10 @@ class SlackReports:
         parsed = urlparse(response_url)
         if parsed.scheme != "https" or parsed.hostname != "hooks.slack.com" or not parsed.path.startswith("/commands/"):
             return
+        stage = "token"
         try:
             token = self._token()
+            stage = "profile"
             member = self._client.member(fields["user_id"], token)
             if not member.tz:
                 raise ValueError("Set your Slack profile timezone first")
@@ -43,6 +46,7 @@ class SlackReports:
             today = datetime.now(ZoneInfo(timezone)).date()
             args = fields.get("text", "").strip().split()
             mode = args[0] if args else ""
+            stage = "projection"
             if mode == "day":
                 day = date.fromisoformat(args[1]) if len(args) > 1 else today
                 if day < date(2026, 7, 14) or day > today:
@@ -66,13 +70,17 @@ class SlackReports:
                 self._respond(response_url, {"response_type": "ephemeral", "text":
                     "BUSY Profit\n/profit day [YYYY-MM-DD] — hourly chart\n/profit month [YYYY-MM] — daily chart\n/profit access — personal Bar PIN\nPersonal reports use your Slack profile timezone."})
                 return
+            stage = "render"
             png = render_chart(title, timezone, labels, values)
+            stage = "upload"
             file_id = self._client.upload_chart(png, title, token)
+            stage = "delivery"
             self._respond(response_url, {"response_type": "ephemeral", "text": f"{title} · {timezone}",
                 "blocks": [{"type": "image", "slack_file": {"id": file_id}, "alt_text": f"{title} · {timezone}"}]})
-        except Exception:
+        except Exception as error:
+            logging.getLogger("busy_profit.slack").warning("Report failed stage=%s error=%s", stage, type(error).__name__)
             self._respond(response_url, {"response_type": "ephemeral", "text":
-                "Report unavailable. Check the period (day YYYY-MM-DD or month YYYY-MM), profile timezone and app installation."})
+                f"Report unavailable at {stage}. Please retry. If it repeats, report this stage."})
 
     def _respond(self, url: str, payload: dict) -> None:
         """Post a private response without logging the secret response URL.
