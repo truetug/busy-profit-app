@@ -110,6 +110,10 @@ class SlackReports:
                 self._respond(response_url, {"response_type": "ephemeral", "text":
                     "BUSY Profit\n/profit day [YYYY-MM-DD] — hourly chart\n/profit month [YYYY-MM] — daily chart\n/profit access — personal Bar PIN\nPersonal reports use your Slack profile timezone."})
                 return
+            if not any(value is not None for value in values):
+                self._respond(response_url, {"response_type": "ephemeral",
+                    "text": f"No sales observations are available for this period ({timezone}). Try another day or month."})
+                return
             stage = "render"
             key = hashlib.sha256(json.dumps([title, timezone, labels, values, pending, note, channel_id if publish else "private"]).encode()).hexdigest()
             newly_shared = False
