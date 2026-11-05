@@ -3,6 +3,10 @@
 import calendar
 import json
 import logging
+import hashlib
+from collections import OrderedDict
+from threading import Lock
+from urllib.error import HTTPError
 from datetime import UTC, date, datetime
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -25,6 +29,8 @@ class SlackReports:
         Channel reports remain separate until destination checks are implemented.
         """
         self._client, self._token, self._views, self._index = client, token, views, index
+        self._files: OrderedDict[str, str] = OrderedDict()
+        self._chart_lock = Lock()
 
     def execute(self, fields: dict[str, str]) -> None:
         """Build one requested report and post it through the signed response URL.
@@ -71,9 +77,18 @@ class SlackReports:
                     "BUSY Profit\n/profit day [YYYY-MM-DD] — hourly chart\n/profit month [YYYY-MM] — daily chart\n/profit access — personal Bar PIN\nPersonal reports use your Slack profile timezone."})
                 return
             stage = "render"
-            png = render_chart(title, timezone, labels, values)
-            stage = "upload"
-            file_id = self._client.upload_chart(png, title, token)
+            key = hashlib.sha256(json.dumps([title, timezone, labels, values]).encode()).hexdigest()
+            with self._chart_lock:
+                file_id = self._files.get(key)
+                if file_id is None:
+                    png = render_chart(title, timezone, labels, values)
+                    stage = "upload"
+                    file_id = self._client.upload_chart(png, title, token)
+                    self._files[key] = file_id
+                    if len(self._files) > 64:
+                        self._files.popitem(last=False)
+                else:
+                    self._files.move_to_end(key)
             stage = "delivery"
             self._respond(response_url, {"response_type": "ephemeral", "text": f"{title} · {timezone}",
                 "blocks": [{"type": "image", "slack_file": {"id": file_id}, "alt_text": f"{title} · {timezone}"}]})
@@ -87,6 +102,13 @@ class SlackReports:
 
         The caller has validated its Slack hostname before any work starts.
         """
-        with urlopen(Request(url, data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json"}), timeout=8) as response:
-            response.read(1024)
+        try:
+            with urlopen(Request(url, data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json"}), timeout=8) as response:
+                response.read(1024)
+        except HTTPError as error:
+            raw = error.read(4096).decode("utf-8", errors="replace")
+            known = ["invalid_blocks", "invalid_payload", "file_not_found", "image_not_found", "channel_not_found", "invalid_response_url", "expired"]
+            reason = next((code for code in known if code in raw), "unclassified")
+            logging.getLogger("busy_profit.slack").warning("Slack delivery HTTP=%s reason=%s", error.code, reason)
+            raise

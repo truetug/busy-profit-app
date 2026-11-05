@@ -50,10 +50,20 @@ class AccessRepository:
 
         Unknown and revoked codes follow the same lookup path.
         """
-        if not 16 <= len(code) <= 32:
+        if not 4 <= len(code) <= 256:
             return False
         with sqlite3.connect(self._path) as connection:
             return connection.execute("SELECT 1 FROM access_codes WHERE digest=?", (self._digest(code),)).fetchone() is not None
+
+    def seed_shared(self, code: str) -> None:
+        """Store the transitional shared PIN as a separate system principal.
+
+        Personal issuance cannot replace or inherit this explicitly named entry.
+        """
+        if not code:
+            return
+        with sqlite3.connect(self._path) as connection:
+            connection.execute("INSERT INTO access_codes(workspace,user,digest) VALUES ('system','shared',?) ON CONFLICT(workspace,user) DO UPDATE SET digest=excluded.digest", (self._digest(code),))
 
     def revoke(self, workspace: str, user: str) -> None:
         """Remove a user's active access without modifying sales data.

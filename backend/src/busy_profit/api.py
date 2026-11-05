@@ -42,6 +42,14 @@ def create_app(
         """
         return {"status": "ok"}
 
+    @app.get("/v1/auth", dependencies=[Depends(require_access)])
+    def verify_access() -> dict[str, str]:
+        """Authorize static-file delivery without returning sales data.
+
+        Caddy uses this endpoint before serving protected CSV files.
+        """
+        return {"status": "authorized"}
+
     @app.get("/v1/days", response_model=DailyView, dependencies=[Depends(require_access)])
     def days(
         timezone: str = Query(max_length=64),
