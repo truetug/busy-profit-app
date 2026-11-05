@@ -72,7 +72,7 @@ class SlackClient:
 
         Error messages intentionally omit raw bodies, tokens and response URLs.
         """
-        if method not in {"oauth.v2.access", "users.info", "auth.test", "files.getUploadURLExternal", "files.completeUploadExternal", "chat.postEphemeral"}:
+        if method not in {"oauth.v2.access", "users.info", "auth.test", "files.getUploadURLExternal", "files.completeUploadExternal", "chat.postEphemeral", "conversations.info", "chat.postMessage"}:
             raise ValueError("Unsupported Slack method")
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         if token:
@@ -121,7 +121,7 @@ class SlackClient:
         """
         return SlackMember.model_validate(self.call("users.info", {"user": user}, token)["user"])
 
-    def upload_chart(self, data: bytes, title: str, token: str) -> str:
+    def upload_chart(self, data: bytes, title: str, token: str, channel: str = "") -> str:
         """Upload a private PNG and return its Slack file identifier.
 
         Do not publish the file to any channel or enable public URLs.
@@ -134,5 +134,8 @@ class SlackClient:
             raise ValueError("Unexpected Slack upload destination")
         with urlopen(Request(url, data=data, headers={"Content-Type": "application/octet-stream"}), timeout=15) as response:
             response.read(1024)
-        self.call("files.completeUploadExternal", {"files": json.dumps([{"id": upload["file_id"], "title": title}])}, token)
+        fields = {"files": json.dumps([{"id": upload["file_id"], "title": title}])}
+        if channel:
+            fields.update({"channel_id": channel, "initial_comment": title})
+        self.call("files.completeUploadExternal", fields, token)
         return upload["file_id"]

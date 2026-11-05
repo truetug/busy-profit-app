@@ -40,7 +40,7 @@ def test_chart_uses_authenticated_private_delivery_and_reuses_file() -> None:
     view = SimpleNamespace(hours=lambda zone, day: SimpleNamespace(
         starts=[datetime(2026, 7, 15, tzinfo=UTC)], values=[5]))
     reports = SlackReports(Client(), lambda: "bot-token", view, None)
-    fields = {"user_id": "U1", "channel_id": "C1", "text": "day 2026-07-15",
+    fields = {"user_id": "U1", "channel_id": "D1", "text": "day 2026-07-15",
         "response_url": "https://hooks.slack.com/commands/test"}
     reports.execute(fields)
     reports.execute(fields)

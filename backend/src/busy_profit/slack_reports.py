@@ -50,6 +50,14 @@ class SlackReports:
             if not member.tz:
                 raise ValueError("Set your Slack profile timezone first")
             timezone = member.tz
+            channel_id = fields.get("channel_id", "")
+            publish = channel_id.startswith(("C", "G"))
+            if publish:
+                stage = "channel"
+                channel = self._client.call("conversations.info", {"channel": channel_id}, token)["channel"]
+                if channel.get("is_ext_shared") or channel.get("is_shared") or not channel.get("is_member"):
+                    raise ValueError("Only internal joined channels are supported")
+                timezone = "UTC"
             today = datetime.now(ZoneInfo(timezone)).date()
             args = fields.get("text", "").strip().split()
             mode = args[0] if args else ""
@@ -78,19 +86,26 @@ class SlackReports:
                     "BUSY Profit\n/profit day [YYYY-MM-DD] — hourly chart\n/profit month [YYYY-MM] — daily chart\n/profit access — personal Bar PIN\nPersonal reports use your Slack profile timezone."})
                 return
             stage = "render"
-            key = hashlib.sha256(json.dumps([title, timezone, labels, values]).encode()).hexdigest()
+            key = hashlib.sha256(json.dumps([title, timezone, labels, values, channel_id if publish else "private"]).encode()).hexdigest()
+            newly_shared = False
             with self._chart_lock:
                 file_id = self._files.get(key)
                 if file_id is None:
                     png = render_chart(title, timezone, labels, values)
                     stage = "upload"
-                    file_id = self._client.upload_chart(png, title, token)
+                    if publish:
+                        file_id = self._client.upload_chart(png, f"{title} · {timezone}", token, channel_id)
+                        newly_shared = True
+                    else:
+                        file_id = self._client.upload_chart(png, title, token)
                     self._files[key] = file_id
                     if len(self._files) > 64:
                         self._files.popitem(last=False)
                 else:
                     self._files.move_to_end(key)
             stage = "delivery"
+            if newly_shared:
+                return
             delivery = {
                 "channel": fields["channel_id"],
                 "user": fields["user_id"],
@@ -99,7 +114,9 @@ class SlackReports:
             }
             for attempt in range(4):
                 try:
-                    self._client.call("chat.postEphemeral", delivery, token)
+                    if publish:
+                        delivery.pop("user", None)
+                    self._client.call("chat.postMessage" if publish else "chat.postEphemeral", delivery, token)
                     break
                 except SlackAPIError as error:
                     if error.code != "invalid_blocks" or attempt == 3:
