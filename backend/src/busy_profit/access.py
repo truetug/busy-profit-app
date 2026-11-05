@@ -65,6 +65,16 @@ class AccessRepository:
         with sqlite3.connect(self._path) as connection:
             connection.execute("INSERT INTO access_codes(workspace,user,digest) VALUES ('system','shared',?) ON CONFLICT(workspace,user) DO UPDATE SET digest=excluded.digest", (self._digest(code),))
 
+    def owner(self, code: str) -> tuple[str, str] | None:
+        """Resolve an active credential to its private stable identity.
+
+        Revoked credentials resolve to no owner and cannot create usage events.
+        """
+        if not 4 <= len(code) <= 256:
+            return None
+        with sqlite3.connect(self._path) as connection:
+            return connection.execute("SELECT workspace,user FROM access_codes WHERE digest=?", (self._digest(code),)).fetchone()
+
     def revoke(self, workspace: str, user: str) -> None:
         """Remove a user's active access without modifying sales data.
 

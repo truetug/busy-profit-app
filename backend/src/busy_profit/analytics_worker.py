@@ -11,6 +11,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from busy_profit.analytics import LABELS, PROFILE
+from busy_profit.usage_events import append_activity_panel
 from request_analytics import UsageRepository, publish_usage_infographic, refresh_usage
 
 
@@ -50,6 +51,7 @@ def main() -> None:
                 retention_days=settings.retention_days,
             )
             logging.info("usage_import_completed records=%s", result.imported_records)
+            append_activity_panel(settings.publish_directory, datetime.now(UTC))
         except Exception as error:
             logging.error("usage_import_failed error=%s", type(error).__name__)
         finally:

@@ -19,19 +19,32 @@ from busy_profit.report_chart import render_chart
 from busy_profit.slack_client import SlackClient, SlackAPIError
 from busy_profit.view_service import ViewService
 from busy_profit.view_storage import ObservationIndex
+from busy_profit.usage_events import UsageEvents
 
 
 class SlackReports:
     """Deliver personal reports without exposing sales through public image URLs."""
 
-    def __init__(self, client: SlackClient, token: Callable[[], str], views: ViewService, index: ObservationIndex) -> None:
+    def __init__(self, client: SlackClient, token: Callable[[], str], views: ViewService, index: ObservationIndex, usage: UsageEvents | None = None) -> None:
         """Inject Slack infrastructure and aggregation use cases.
 
         Channel reports remain separate until destination checks are implemented.
         """
         self._client, self._token, self._views, self._index = client, token, views, index
+        self._usage = usage
         self._files: OrderedDict[str, str] = OrderedDict()
         self._chart_lock = Lock()
+
+    def _record(self, fields: dict[str, str], mode: str) -> None:
+        """Count only delivered reports and never include sales payloads.
+
+        Metrics failures cannot turn a successful delivery into an error.
+        """
+        if self._usage:
+            try:
+                self._usage.record("employee", fields["team_id"] + ":" + fields["user_id"], "slack_" + mode)
+            except Exception:
+                logging.getLogger("busy_profit.slack").warning("Usage recording failed")
 
     def execute(self, fields: dict[str, str]) -> None:
         """Build one requested report and post it through the signed response URL.
@@ -73,7 +86,7 @@ class SlackReports:
                     closes = [source.close(boundary) for boundary in boundaries]
                 values = [difference(before, after) for before, after in zip(closes, closes[1:])]
                 labels = [boundary.astimezone(ZoneInfo(timezone)).strftime("%H:%M") for boundary in boundaries[:-1]]
-                title = "BUSY Profit · Hourly sales · last 24 hours"
+                title = "BUSY Bar hourly sales · last 24 hours"
                 note = "Ending " + now.strftime("%d %b %H:%M")
             elif mode == "day":
                 day = date.fromisoformat(args[1]) if len(args) > 1 else today
@@ -82,7 +95,7 @@ class SlackReports:
                         "text": "No sales observations are available for this day. Try another date."})
                     return
                 report = self._views.hours(timezone, day)
-                title = f"BUSY Profit · Hourly sales · {day}"
+                title = f"BUSY Bar hourly sales · {day}"
                 labels = [at.strftime("%H") for at in report.starts]
                 if len(set(labels)) != len(labels):
                     labels = [at.strftime("%H%z") if labels.count(at.strftime("%H")) > 1 else at.strftime("%H") for at in report.starts]
@@ -106,7 +119,7 @@ class SlackReports:
                 dates = [month + timedelta(days=index) for index in range(days)]
                 pending = [day > today for day in dates]
                 values = [None if future else value for value, future in zip(values, pending)]
-                title = "BUSY Profit · Daily sales · last 30 days" if rolling else f"BUSY Profit · Daily sales · {month:%Y-%m}"
+                title = "BUSY Bar daily sales · last 30 days" if rolling else f"BUSY Bar daily sales · {month:%Y-%m}"
                 labels = [day.strftime("%d.%m") if rolling else str(day.day) for day in dates]
                 if today in dates:
                     note = "As of " + now.strftime("%H:%M") + " · today partial"
@@ -138,6 +151,7 @@ class SlackReports:
                     self._files.move_to_end(key)
             stage = "delivery"
             if newly_shared:
+                self._record(fields, mode)
                 return
             delivery = {
                 "channel": fields["channel_id"],
@@ -150,6 +164,7 @@ class SlackReports:
                     if publish:
                         delivery.pop("user", None)
                     self._client.call("chat.postMessage" if publish else "chat.postEphemeral", delivery, token)
+                    self._record(fields, mode)
                     break
                 except SlackAPIError as error:
                     if error.code != "invalid_blocks" or attempt == 3:

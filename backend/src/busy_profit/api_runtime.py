@@ -21,6 +21,7 @@ from busy_profit.slack_reports import SlackReports
 from busy_profit.view_import import ArchiveImporter
 from busy_profit.view_service import ViewService
 from busy_profit.view_storage import ObservationIndex
+from busy_profit.usage_events import UsageEvents
 
 
 class APISettings(BaseSettings):
@@ -97,8 +98,22 @@ def build_app():
     client = SlackClient(settings.slack_app_client_id, settings.slack_app_client_secret.get_secret_value(), settings.slack_redirect_uri)
     tokens = TokenManager(settings, storage, client)
     access.seed_shared(settings.busy_profit_access_key.get_secret_value())
+    usage = UsageEvents(settings.profit_data / "activity.sqlite3")
     views = ViewService(index)
-    app = create_app(views, access.authorize)
+    def authorize(code: str) -> bool:
+        """Authorize a credential and attribute successful use privately.
+
+        Analytics storage failures must never deny otherwise valid access.
+        """
+        owner = access.owner(code)
+        if owner is None:
+            return False
+        try:
+            usage.record("shared" if owner[0] == "system" else "employee", ":".join(owner), "data_read")
+        except Exception:
+            logging.getLogger("busy_profit.api").warning("Usage recording failed")
+        return True
+    app = create_app(views, authorize)
 
     def eligible(user: str) -> bool:
         """Consult Slack membership using the current installation token.
@@ -112,7 +127,7 @@ def build_app():
         SlackOAuthService(storage, settings.slack_team_id, client.exchange), storage,
         settings.slack_app_client_id, settings.slack_redirect_uri,
         settings.profit_installation_key.get_secret_value(),
-        reports=SlackReports(client, tokens.get, views, index).execute,
+        reports=SlackReports(client, tokens.get, views, index, usage).execute,
     ))
 
     @asynccontextmanager
