@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from threading import RLock
 from zoneinfo import ZoneInfo
 
-from busy_profit.calendar_views import daily_values, hourly_values
+from busy_profit.calendar_views import daily_values, hourly_values, difference
 from busy_profit.view_schemas import DailyView, HourlyView, ViewQuery
 from busy_profit.view_storage import ObservationIndex
 
@@ -46,8 +46,12 @@ class ViewService:
             if isinstance(cached, DailyView):
                 self._cache.move_to_end(key)
                 return cached
+            values = daily_values(source, start, max(0, (end-start).days+1), timezone)
+            if not older and values:
+                midnight = datetime.combine(today, datetime.min.time(), ZoneInfo(timezone))
+                values[-1] = difference(source.close(midnight), source.close(now + timedelta(seconds=1)))
             result = DailyView(revision=source.revision, timezone=timezone, start=start,
-                values=daily_values(source, start, max(0, (end-start).days+1), timezone),
+                values=values,
                 total=source.total, more=not older and start > launch)
             self._remember(key, result)
             return result
