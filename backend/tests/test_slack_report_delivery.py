@@ -49,3 +49,21 @@ def test_chart_uses_authenticated_private_delivery_and_reuses_file() -> None:
     assert calls[0][0] == "chat.postEphemeral"
     assert calls[0][1]["user"] == "U1"
     assert calls[0][2] == "bot-token"
+
+
+def test_absent_observations_reply_privately_without_upload() -> None:
+    """Unknown periods must not generate or publish an empty chart.
+
+    This differs from known zero sales, which remain valid observations.
+    """
+    replies = []
+    client = SimpleNamespace(member=lambda user, token: SimpleNamespace(tz="UTC"))
+    views = SimpleNamespace(hours=lambda zone, day: SimpleNamespace(
+        starts=[datetime(2026, 7, 15, tzinfo=UTC)], values=[None]))
+    reports = SlackReports(client, lambda: "bot-token", views, None)
+    reports._respond = lambda url, payload: replies.append(payload)
+    reports.execute({"user_id": "U1", "channel_id": "D1", "text": "day 2026-07-15",
+        "response_url": "https://hooks.slack.com/commands/test"})
+    assert len(replies) == 1
+    assert replies[0]["response_type"] == "ephemeral"
+    assert "No sales observations" in replies[0]["text"]
