@@ -78,7 +78,9 @@ class SlackReports:
             elif mode == "day":
                 day = date.fromisoformat(args[1]) if len(args) > 1 else today
                 if day < date(2026, 7, 14) or day > today:
-                    raise ValueError("Date outside the sales period")
+                    self._respond(response_url, {"response_type": "ephemeral",
+                        "text": "No sales observations are available for this day. Try another date."})
+                    return
                 report = self._views.hours(timezone, day)
                 title = f"Hourly sales · {day}"
                 labels = [at.strftime("%H") for at in report.starts]
@@ -92,7 +94,9 @@ class SlackReports:
                 rolling = len(args) == 1
                 month = date.fromisoformat(args[1] + "-01") if not rolling else today - timedelta(days=29)
                 if month > today or month < date(2026, 7, 1):
-                    raise ValueError("Month outside the sales period")
+                    self._respond(response_url, {"response_type": "ephemeral",
+                        "text": "No sales observations are available for this month. Try another month."})
+                    return
                 days = 30 if rolling else calendar.monthrange(month.year, month.month)[1]
                 with self._index.snapshot() as source:
                     values = daily_values(source, month, days, timezone)
