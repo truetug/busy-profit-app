@@ -8,13 +8,13 @@ import time
 from collections import OrderedDict
 from threading import Lock
 from urllib.error import HTTPError
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta, time as calendar_time
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 from collections.abc import Callable
 
-from busy_profit.calendar_views import daily_values
+from busy_profit.calendar_views import daily_values, difference
 from busy_profit.report_chart import render_chart
 from busy_profit.slack_client import SlackClient, SlackAPIError
 from busy_profit.view_service import ViewService
@@ -65,7 +65,17 @@ class SlackReports:
             args = fields.get("text", "").strip().split()
             mode = args[0] if args else ""
             stage = "projection"
-            if mode == "day":
+            if mode == "day" and len(args) == 1:
+                end = now.astimezone(UTC)
+                start = end - timedelta(hours=24)
+                boundaries = [start + timedelta(hours=index) for index in range(25)]
+                with self._index.snapshot() as source:
+                    closes = [source.close(boundary) for boundary in boundaries]
+                values = [difference(before, after) for before, after in zip(closes, closes[1:])]
+                labels = [boundary.astimezone(ZoneInfo(timezone)).strftime("%H:%M") for boundary in boundaries[:-1]]
+                title = "Hourly sales · last 24 hours"
+                note = "Ending " + now.strftime("%d %b %H:%M")
+            elif mode == "day":
                 day = date.fromisoformat(args[1]) if len(args) > 1 else today
                 if day < date(2026, 7, 14) or day > today:
                     raise ValueError("Date outside the sales period")
@@ -79,16 +89,23 @@ class SlackReports:
                 if day == today:
                     note = "As of " + now.strftime("%H:%M") + " · current hour partial"
             elif mode == "month":
-                month = date.fromisoformat(args[1] + "-01") if len(args) > 1 else today.replace(day=1)
+                rolling = len(args) == 1
+                month = date.fromisoformat(args[1] + "-01") if not rolling else today - timedelta(days=29)
                 if month > today or month < date(2026, 7, 1):
                     raise ValueError("Month outside the sales period")
-                days = calendar.monthrange(month.year, month.month)[1]
-                if month.year == today.year and month.month == today.month:
-                    days = today.day
+                days = 30 if rolling else calendar.monthrange(month.year, month.month)[1]
                 with self._index.snapshot() as source:
                     values = daily_values(source, month, days, timezone)
-                title = f"Daily sales · {month:%Y-%m}"
-                labels = [str(index+1) for index in range(days)]
+                    if month <= today < month + timedelta(days=days):
+                        midnight = datetime.combine(today, calendar_time.min, ZoneInfo(timezone))
+                        values[(today-month).days] = difference(source.close(midnight), source.close(now + timedelta(seconds=1)))
+                dates = [month + timedelta(days=index) for index in range(days)]
+                pending = [day > today for day in dates]
+                values = [None if future else value for value, future in zip(values, pending)]
+                title = "Daily sales · last 30 days" if rolling else f"Daily sales · {month:%Y-%m}"
+                labels = [day.strftime("%d.%m") if rolling else str(day.day) for day in dates]
+                if today in dates:
+                    note = "As of " + now.strftime("%H:%M") + " · today partial"
             else:
                 self._respond(response_url, {"response_type": "ephemeral", "text":
                     "BUSY Profit\n/profit day [YYYY-MM-DD] — hourly chart\n/profit month [YYYY-MM] — daily chart\n/profit access — personal Bar PIN\nPersonal reports use your Slack profile timezone."})

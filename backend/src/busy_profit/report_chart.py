@@ -2,6 +2,7 @@
 
 from datetime import date
 from io import BytesIO
+import math
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -33,7 +34,14 @@ def render_chart(
     if any(value < 0 for value in known):
         raise ValueError("Sales cannot be negative")
     maximum = max(known, default=0)
-    left, right, top, bottom = 48, 1152, 130, 520
+    scale_maximum = max(1, maximum)
+    step = max(1, math.ceil(scale_maximum / 4))
+    scale_maximum = step * math.ceil(scale_maximum / step)
+    left, right, top, bottom = 80, 1152, 130, 520
+    for tick in range(0, scale_maximum + 1, step):
+        y = bottom - round(tick / scale_maximum * (bottom-top))
+        draw.line((left, y, right, y), fill="#303030")
+        draw.text((left-12, y), str(tick), anchor="rm", fill="#b0b0b0", font=font)
     for index, value in enumerate(values):
         x0 = left + index * (right-left) // len(values)
         x1 = left + (index+1) * (right-left) // len(values) - 1
@@ -44,7 +52,7 @@ def render_chart(
         if value is None:
             draw.line((x0, bottom, x1, bottom), fill="#606060")
         else:
-            height = max(1, round(value / maximum * (bottom-top))) if maximum else 1
+            height = max(1, round(value / scale_maximum * (bottom-top)))
             for y in range(bottom-height, bottom):
                 ratio = (bottom-1-y) / (bottom-top-1)
                 strength = round(ratio * 29) / 29

@@ -17,7 +17,7 @@ def test_png_chart_handles_unknown_and_zero_sales() -> None:
     """
     image = Image.open(BytesIO(render_chart("Day · 2026-11-05", "UTC", ["00", "01", "02"], [None, 0, 10])))
     assert image.size == (1200, 640)
-    assert image.getpixel((50, 520)) == (96, 96, 96)
+    assert image.getpixel((82, 520)) == (96, 96, 96)
     with pytest.raises(ValueError):
         render_chart("Invalid", "UTC", ["00"], [-1])
 
