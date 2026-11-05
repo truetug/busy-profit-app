@@ -1,0 +1,42 @@
+{
+  "display_information": {
+    "name": "BUSY Profit",
+    "description": "Private sales reports, charts and personal BUSY Bar access",
+    "background_color": "#202020"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "BUSY Profit",
+      "always_online": false
+    },
+    "slash_commands": [
+      {
+        "command": "/profit",
+        "url": "https://profit.busy.truetug.info/slack/commands",
+        "description": "View sales, charts or get a personal Bar PIN",
+        "usage_hint": "[access]",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "commands",
+        "users:read",
+        "chat:write",
+        "files:write",
+        "channels:read",
+        "groups:read"
+      ]
+    }
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://profit.busy.truetug.info/slack/interactions"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false
+  }
+}
