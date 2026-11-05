@@ -127,7 +127,7 @@ class SlackClient:
         Do not publish the file to any channel or enable public URLs.
         """
         from urllib.parse import urlparse
-        upload = self.call("files.getUploadURLExternal", {"filename": "profit.png", "length": str(len(data))}, token)
+        upload = self.call("files.getUploadURLExternal", {"filename": "busy-profit.png", "length": str(len(data))}, token)
         url = upload["upload_url"]
         parsed = urlparse(url)
         if parsed.scheme != "https" or parsed.hostname != "files.slack.com":

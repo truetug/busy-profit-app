@@ -73,7 +73,7 @@ class SlackReports:
                     closes = [source.close(boundary) for boundary in boundaries]
                 values = [difference(before, after) for before, after in zip(closes, closes[1:])]
                 labels = [boundary.astimezone(ZoneInfo(timezone)).strftime("%H:%M") for boundary in boundaries[:-1]]
-                title = "Hourly sales · last 24 hours"
+                title = "BUSY Profit · Hourly sales · last 24 hours"
                 note = "Ending " + now.strftime("%d %b %H:%M")
             elif mode == "day":
                 day = date.fromisoformat(args[1]) if len(args) > 1 else today
@@ -82,7 +82,7 @@ class SlackReports:
                         "text": "No sales observations are available for this day. Try another date."})
                     return
                 report = self._views.hours(timezone, day)
-                title = f"Hourly sales · {day}"
+                title = f"BUSY Profit · Hourly sales · {day}"
                 labels = [at.strftime("%H") for at in report.starts]
                 if len(set(labels)) != len(labels):
                     labels = [at.strftime("%H%z") if labels.count(at.strftime("%H")) > 1 else at.strftime("%H") for at in report.starts]
@@ -106,7 +106,7 @@ class SlackReports:
                 dates = [month + timedelta(days=index) for index in range(days)]
                 pending = [day > today for day in dates]
                 values = [None if future else value for value, future in zip(values, pending)]
-                title = "Daily sales · last 30 days" if rolling else f"Daily sales · {month:%Y-%m}"
+                title = "BUSY Profit · Daily sales · last 30 days" if rolling else f"BUSY Profit · Daily sales · {month:%Y-%m}"
                 labels = [day.strftime("%d.%m") if rolling else str(day.day) for day in dates]
                 if today in dates:
                     note = "As of " + now.strftime("%H:%M") + " · today partial"
