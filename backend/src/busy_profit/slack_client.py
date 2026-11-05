@@ -10,6 +10,18 @@ from pydantic import BaseModel, Field
 from busy_profit.slack_oauth import InstallationTokens
 
 
+class SlackAPIError(ValueError):
+    """Carry a sanitized API error code without retaining Slack response bodies."""
+
+    def __init__(self, code: str) -> None:
+        """Expose only the safe machine-readable error category.
+
+        Callers can apply bounded retries without parsing sensitive payloads.
+        """
+        self.code = code
+        super().__init__("Slack request failed: " + code)
+
+
 class SlackMember(BaseModel):
     """Expose only membership and timezone fields needed by application services."""
 
@@ -75,7 +87,7 @@ class SlackClient:
             allowed = {"invalid_blocks", "channel_not_found", "not_in_channel", "missing_scope", "invalid_auth", "token_expired"}
             code = result.get("error") if isinstance(result, dict) else None
             logging.getLogger("busy_profit.slack").warning("Slack API method=%s error=%s", method, code if code in allowed else "request_failed")
-            raise ValueError("Slack request failed")
+            raise SlackAPIError(code if code in allowed else "request_failed")
         return result
 
     def exchange(self, code: str) -> InstallationTokens:

@@ -4,6 +4,7 @@ import calendar
 import json
 import logging
 import hashlib
+import time
 from collections import OrderedDict
 from threading import Lock
 from urllib.error import HTTPError
@@ -15,7 +16,7 @@ from collections.abc import Callable
 
 from busy_profit.calendar_views import daily_values
 from busy_profit.report_chart import render_chart
-from busy_profit.slack_client import SlackClient
+from busy_profit.slack_client import SlackClient, SlackAPIError
 from busy_profit.view_service import ViewService
 from busy_profit.view_storage import ObservationIndex
 
@@ -90,12 +91,20 @@ class SlackReports:
                 else:
                     self._files.move_to_end(key)
             stage = "delivery"
-            self._client.call("chat.postEphemeral", {
+            delivery = {
                 "channel": fields["channel_id"],
                 "user": fields["user_id"],
                 "text": f"{title} · {timezone}",
                 "blocks": json.dumps([{"type": "image", "slack_file": {"id": file_id}, "alt_text": f"{title} · {timezone}"}]),
-            }, token)
+            }
+            for attempt in range(4):
+                try:
+                    self._client.call("chat.postEphemeral", delivery, token)
+                    break
+                except SlackAPIError as error:
+                    if error.code != "invalid_blocks" or attempt == 3:
+                        raise
+                    time.sleep((3, 5, 8)[attempt])
         except Exception as error:
             logging.getLogger("busy_profit.slack").warning("Report failed stage=%s error=%s", stage, type(error).__name__)
             self._respond(response_url, {"response_type": "ephemeral", "text":
