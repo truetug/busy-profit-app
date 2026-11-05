@@ -1,6 +1,7 @@
 """Bounded Slack Web API adapter without sensitive response logging."""
 
 import json
+import logging
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -71,6 +72,9 @@ class SlackClient:
             raise ValueError("Slack response too large")
         result = json.loads(body)
         if not isinstance(result, dict) or result.get("ok") is not True:
+            allowed = {"invalid_blocks", "channel_not_found", "not_in_channel", "missing_scope", "invalid_auth", "token_expired"}
+            code = result.get("error") if isinstance(result, dict) else None
+            logging.getLogger("busy_profit.slack").warning("Slack API method=%s error=%s", method, code if code in allowed else "request_failed")
             raise ValueError("Slack request failed")
         return result
 
