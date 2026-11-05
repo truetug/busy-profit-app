@@ -59,6 +59,9 @@ class SlackReports:
                     raise ValueError("Only internal joined channels are supported")
                 timezone = "UTC"
             today = datetime.now(ZoneInfo(timezone)).date()
+            now = datetime.now(ZoneInfo(timezone))
+            pending = None
+            note = ""
             args = fields.get("text", "").strip().split()
             mode = args[0] if args else ""
             stage = "projection"
@@ -68,8 +71,13 @@ class SlackReports:
                     raise ValueError("Date outside the sales period")
                 report = self._views.hours(timezone, day)
                 title = f"Hourly sales · {day}"
-                labels = [at.strftime("%H:%M %z") for at in report.starts]
-                values = report.values
+                labels = [at.strftime("%H") for at in report.starts]
+                if len(set(labels)) != len(labels):
+                    labels = [at.strftime("%H%z") if labels.count(at.strftime("%H")) > 1 else at.strftime("%H") for at in report.starts]
+                pending = [at > now for at in report.starts]
+                values = [None if future else value for value, future in zip(report.values, pending)]
+                if day == today:
+                    note = "As of " + now.strftime("%H:%M") + " · current hour partial"
             elif mode == "month":
                 month = date.fromisoformat(args[1] + "-01") if len(args) > 1 else today.replace(day=1)
                 if month > today or month < date(2026, 7, 1):
@@ -86,12 +94,12 @@ class SlackReports:
                     "BUSY Profit\n/profit day [YYYY-MM-DD] — hourly chart\n/profit month [YYYY-MM] — daily chart\n/profit access — personal Bar PIN\nPersonal reports use your Slack profile timezone."})
                 return
             stage = "render"
-            key = hashlib.sha256(json.dumps([title, timezone, labels, values, channel_id if publish else "private"]).encode()).hexdigest()
+            key = hashlib.sha256(json.dumps([title, timezone, labels, values, pending, note, channel_id if publish else "private"]).encode()).hexdigest()
             newly_shared = False
             with self._chart_lock:
                 file_id = self._files.get(key)
                 if file_id is None:
-                    png = render_chart(title, timezone, labels, values)
+                    png = render_chart(title, timezone, labels, values, pending, note)
                     stage = "upload"
                     if publish:
                         file_id = self._client.upload_chart(png, f"{title} · {timezone}", token, channel_id)

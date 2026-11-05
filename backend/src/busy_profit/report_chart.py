@@ -11,6 +11,8 @@ def render_chart(
     timezone: str,
     labels: list[str],
     values: list[int | None],
+    pending: list[bool] | None = None,
+    note: str = "",
 ) -> bytes:
     """Draw adjoining gradient columns with explicit unknown-data markers.
 
@@ -18,6 +20,9 @@ def render_chart(
     """
     if not values or len(values) != len(labels) or len(values) > 366:
         raise ValueError("Invalid chart series")
+    pending = pending or [False] * len(values)
+    if len(pending) != len(values):
+        raise ValueError("Invalid pending mask")
     image = Image.new("RGB", (1200, 640), "#141414")
     draw = ImageDraw.Draw(image)
     title_font = ImageFont.load_default(size=30)
@@ -32,21 +37,31 @@ def render_chart(
     for index, value in enumerate(values):
         x0 = left + index * (right-left) // len(values)
         x1 = left + (index+1) * (right-left) // len(values) - 1
+        if pending[index]:
+            if index % max(1, (len(values)+11)//12) == 0:
+                draw.text((x0, bottom+14), labels[index], fill="#606060", font=font)
+            continue
         if value is None:
             draw.line((x0, bottom, x1, bottom), fill="#606060")
         else:
-            height = round(value / maximum * (bottom-top)) if maximum else 0
+            height = max(1, round(value / maximum * (bottom-top))) if maximum else 1
             for y in range(bottom-height, bottom):
                 ratio = (bottom-1-y) / (bottom-top-1)
                 strength = round(ratio * 29) / 29
                 color = (round(144+111*strength), round(232-187*strength), round(154-119*strength))
                 draw.line((x0, y, x1, y), fill=color)
+            if value > 0 and len(values) <= 31:
+                text = str(value)
+                draw.text(((x0+x1)/2, max(top-24, bottom-height-25)), text,
+                    anchor="mt", fill="white", font=font)
         if index % max(1, (len(values)+11)//12) == 0:
             draw.text((x0, bottom+14), labels[index], fill="#b0b0b0", font=font)
     total = sum(known)
     draw.text((48, 590), f"Total: {total:,}    Max: {maximum:,}", fill="white", font=font)
-    if len(known) != len(values):
-        draw.text((650, 590), "Gray: incomplete data", fill="#b0b0b0", font=font)
+    if note:
+        draw.text((650, 590), note, fill="#b0b0b0", font=font)
+    elif any(value is None and not future for value, future in zip(values, pending)):
+        draw.text((650, 590), "Gray: missing observations", fill="#b0b0b0", font=font)
     output = BytesIO()
     image.save(output, format="PNG", optimize=True)
     return output.getvalue()
