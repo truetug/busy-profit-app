@@ -5,7 +5,7 @@ from collections.abc import Callable
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from busy_profit.oauth_storage import OAuthStorage
 from busy_profit.slack_access import SlackAccessService
@@ -71,7 +71,7 @@ def slack_router(
         background_tasks: BackgroundTasks,
         x_slack_request_timestamp: str = Header(default=""),
         x_slack_signature: str = Header(default=""),
-    ) -> dict[str, str]:
+    ) -> Response:
         """Read a bounded raw body before signature validation and issuance.
 
         Never send credentials into a channel or include them in error bodies.
@@ -88,13 +88,17 @@ def slack_router(
                     x_slack_request_timestamp, x_slack_signature, clock())
                 if fields.get("text", "").strip() != "access":
                     background_tasks.add_task(reports, fields)
-                    return {"response_type": "ephemeral", "text": "Preparing your private report…"}
+                    if fields.get("channel_id", "").startswith(("C", "G")):
+                        return Response(status_code=200)
+                    from fastapi.responses import JSONResponse
+                    return JSONResponse({"response_type": "ephemeral", "text": "Preparing your private report…"})
             code = await run_in_threadpool(access.execute, bytes(body),
                 x_slack_request_timestamp, x_slack_signature, clock())
         except PermissionError as error:
             raise HTTPException(403, "Employee access required") from error
         except ValueError as error:
             raise HTTPException(400, "Invalid Slack command") from error
-        return {"response_type": "ephemeral", "text": "Your personal BUSY Profit PIN: " + code + "\nIssuing a new PIN revokes this one."}
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"response_type": "ephemeral", "text": "Your personal BUSY Profit PIN: " + code + "\nIssuing a new PIN revokes this one."})
 
     return router
